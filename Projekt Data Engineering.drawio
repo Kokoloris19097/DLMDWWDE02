@@ -1,0 +1,687 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.5 Chrome/138.0.7204.251 Electron/37.6.1 Safari/537.36" version="28.2.5" pages="5">
+  <diagram name="System" id="pB9pXK75zmo5HRThhY4j">
+    <mxGraphModel dx="2066" dy="1201" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="kva-CRndHSzZwYyyVSzq-1" value="K8s" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="80" y="180" width="480" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.25;entryDx=0;entryDy=0;strokeWidth=3;exitX=0;exitY=0.25;exitDx=0;exitDy=0;" parent="1" source="kva-CRndHSzZwYyyVSzq-2" target="kva-CRndHSzZwYyyVSzq-3" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-9" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;strokeColor=default;strokeWidth=3;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" parent="1" source="kva-CRndHSzZwYyyVSzq-2" target="kva-CRndHSzZwYyyVSzq-4" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-14" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=default;strokeWidth=3;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" parent="1" source="kva-CRndHSzZwYyyVSzq-2" target="kva-CRndHSzZwYyyVSzq-13" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-2" value="Kafka&lt;br&gt;(apache/kafka:4.0.1)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="240" y="320" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-8" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;strokeColor=default;strokeWidth=3;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" parent="1" source="kva-CRndHSzZwYyyVSzq-3" target="kva-CRndHSzZwYyyVSzq-2" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-3" value="Prozessierer&lt;br&gt;(Kafka Stream)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="80" y="320" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-10" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;strokeColor=default;strokeWidth=3;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" parent="1" source="kva-CRndHSzZwYyyVSzq-4" target="kva-CRndHSzZwYyyVSzq-2" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-4" value="Aggregierer&lt;br&gt;(Kafka Stream)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="440" y="320" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-12" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=default;strokeWidth=3;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" parent="1" source="1bSfN5Sr2OSRUznrR1so-1" target="kva-CRndHSzZwYyyVSzq-2" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-11" value="Daten-Quelle" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="80" y="120" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="kva-CRndHSzZwYyyVSzq-13" value="&quot;Reporter&quot;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="440" y="440" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="1bSfN5Sr2OSRUznrR1so-2" value="" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=default;strokeWidth=3;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" parent="1" source="kva-CRndHSzZwYyyVSzq-11" target="1bSfN5Sr2OSRUznrR1so-1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="140" as="sourcePoint" />
+            <mxPoint x="270" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1bSfN5Sr2OSRUznrR1so-1" value="ETL-Service" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="240" y="240" width="120" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="Gpvrwjqw_J4-sr1Qvvay" name="Schema">
+    <mxGraphModel dx="1181" dy="686" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="data-source" value="Data Sources&#xa;(APIs, Files, Streams)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+          <mxGeometry x="50" y="200" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ingestion" value="Data Ingestion Service&#xa;(Kafka Producer/Consumer)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+          <mxGeometry x="230" y="200" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="processing" value="Data Processing Service&#xa;(Spark Jobs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="230" y="320" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="storage" value="Data Storage Service&#xa;(MinIO/S3 + Metadata)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+          <mxGeometry x="450" y="320" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="Reporting API Service&#xa;(REST API + Redis Cache)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+          <mxGeometry x="670" y="200" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="monitoring" value="Monitoring Service&#xa;(Prometheus + Grafana)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" parent="1" vertex="1">
+          <mxGeometry x="450" y="80" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="analytics-db" value="Analytical DB&#xa;(ClickHouse)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" parent="1" vertex="1">
+          <mxGeometry x="670" y="340" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="users" value="End Users&#xa;(Dashboards, Reports)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+          <mxGeometry x="890" y="200" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="data-source" target="ingestion" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="ingestion" target="processing" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="processing" target="storage" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="storage" target="analytics-db" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="api" target="analytics-db" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="api" target="users" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="monitor1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;strokeColor=#999999;" parent="1" source="monitoring" target="ingestion" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="monitor2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;strokeColor=#999999;" parent="1" source="monitoring" target="storage" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="monitor3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;strokeColor=#999999;" parent="1" source="monitoring" target="api" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label1" value="Stream Data" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="180" y="180" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="label2" value="Raw Data" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="310" y="280" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="label3" value="Processed Data" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="380" y="340" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="label4" value="Aggregated Data" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="680" y="290" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="label5" value="API Calls" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="820" y="180" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="label6" value="Monitoring" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="380" y="110" width="60" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="uzQy9YNs9FZ1RFwERMvR" name="Tech Stack">
+    <mxGraphModel dx="1425" dy="828" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Data Engineering System - Technology Stack" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="480" y="40" width="400" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="data-source" value="Python Sensor Simulator&#xa;(Local Script)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="50" y="310" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="data-source-tech" value="• Python 3.x&#xa;• requests library&#xa;• JSON payload&#xa;• HTTP POST" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="50" y="380" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ingestion" value="Data Ingestion Service&#xa;(REST API)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="250" y="310" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ingestion-tech" value="• FastAPI (Python)&#xa;• Pydantic validation&#xa;• Kafka Producer&#xa;• Docker container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="250" y="380" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="kafka" value="Message Streaming&#xa;(Apache Kafka)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="450" y="310" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="kafka-tech" value="• Apache Kafka 3.x&#xa;• Zookeeper&#xa;• Confluent Schema Registry&#xa;• Avro serialization" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="450" y="380" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="processing" value="Data Processing Service&#xa;(Batch Processing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="250" y="510" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="processing-tech" value="• Apache Spark 3.4&#xa;• PySpark&#xa;• Kubernetes Spark Operator&#xa;• Parquet output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="250" y="580" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="storage" value="Data Storage Service&#xa;(Object Storage)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="450" y="510" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="storage-tech" value="• MinIO (S3-compatible)&#xa;• Apache Parquet format&#xa;• Time-based partitioning&#xa;• Hive Metastore" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="450" y="580" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="analytics-db" value="Analytical Database&#xa;(OLAP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="650" y="510" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="analytics-db-tech" value="• ClickHouse&#xa;• Columnar storage&#xa;• SQL interface&#xa;• Time-series optimized" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="650" y="580" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="Reporting API Service&#xa;(REST API + Cache)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="850" y="310" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api-tech" value="• FastAPI (Python)&#xa;• Redis Cache&#xa;• ClickHouse Client&#xa;• Async/await pattern" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="850" y="380" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="monitoring" value="Monitoring Service&#xa;(Metrics &amp; Dashboards)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="450" y="190" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="monitoring-tech" value="• Prometheus&#xa;• Grafana&#xa;• Alertmanager&#xa;• Custom metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="450" y="120" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="users" value="End Users&#xa;(Dashboards)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="1050" y="310" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="users-tech" value="• Web Browser&#xa;• REST API calls&#xa;• JSON responses&#xa;• Real-time updates" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="1050" y="380" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-layer" value="Kubernetes Orchestration Layer" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;fontSize=14;fontStyle=1;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="40" y="680" width="1180" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-tech" value="• Kubernetes 1.28+  • Helm Charts  • Docker Containers  • Service Discovery  • Load Balancing  • Auto-scaling  • Health Checks" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="40" y="730" width="1180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#0066CC;" parent="1" source="data-source" target="ingestion" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label1" value="HTTP POST" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="200" y="285" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#0066CC;" parent="1" source="ingestion" target="kafka" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label2" value="Kafka Producer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="400" y="285" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#0066CC;" parent="1" source="kafka" target="processing" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="340" />
+              <mxPoint x="610" y="460" />
+              <mxPoint x="320" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label3" value="Kafka Consumer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="380" y="465" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#0066CC;" parent="1" source="processing" target="storage" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label4" value="Parquet Files" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="400" y="515" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#0066CC;" parent="1" source="storage" target="analytics-db" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label5" value="ETL Load" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="600" y="515" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#0066CC;" parent="1" source="analytics-db" target="api" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="720" y="460" />
+              <mxPoint x="830" y="460" />
+              <mxPoint x="830" y="340" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label6" value="SQL Queries" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="750" y="465" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#0066CC;" parent="1" source="api" target="users" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label7" value="REST API" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="1000" y="285" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="monitor1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;strokeColor=#999999;strokeWidth=1;" parent="1" source="monitoring" target="ingestion" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="monitor2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;strokeColor=#999999;strokeWidth=1;" parent="1" source="monitoring" target="kafka" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="monitor3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;strokeColor=#999999;strokeWidth=1;" parent="1" source="monitoring" target="api" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="monitor-label" value="Metrics Collection" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;color=#666666;" parent="1" vertex="1">
+          <mxGeometry x="520" y="265" width="100" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="XzdKWbt4ziYBMFho4dQG-1" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="40" y="770" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;dashed=1;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="Legend" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry y="5" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend1" value="─────────" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;color=#0066CC;fontFamily=monospace;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry x="10" y="30" width="60" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend1-text" value="Data Flow" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry x="80" y="30" width="60" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend2" value="- - - - - -" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;color=#999999;fontFamily=monospace;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry x="10" y="50" width="60" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend2-text" value="Monitoring" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry x="80" y="50" width="60" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend3" value="Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry x="10" y="70" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend3-text" value="Microservice" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry x="60" y="70" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend4" value="Tech" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=8;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry x="10" y="95" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend4-text" value="Technology Stack" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="XzdKWbt4ziYBMFho4dQG-1" vertex="1">
+          <mxGeometry x="60" y="95" width="120" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="QpLIuBAsTzNImzyGEzos" name="K8s">
+    <mxGraphModel dx="2066" dy="1235" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cluster-box" value="&lt;span style=&quot;font-size: 14px; font-weight: 700; text-align: left;&quot;&gt;Kubernetes Cluster (Local)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=3;dashed=1;verticalAlign=top;fontColor=#333333;" parent="1" vertex="1">
+          <mxGeometry x="100" y="80" width="1470" height="510" as="geometry" />
+        </mxCell>
+        <mxCell id="external-box" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;External Access &amp;amp; Load Balancing&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;strokeWidth=2;dashed=1;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="160" y="610" width="1280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="title" value="Data Engineering System - Kubernetes Cluster Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="550" y="20" width="500" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ingestion-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: data-ingestion&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;dashed=1;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="120" y="160" width="320" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="ingestion-pod" value="Ingestion API&#xa;(FastAPI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="190" y="200" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="kafka-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: message-queue&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;dashed=1;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="480" y="160" width="320" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-3" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;startArrow=classic;startFill=1;dashed=1;" edge="1" parent="1" source="kafka-pod" target="zsv6uN8H7PlLHwyfJL23-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-4" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;startArrow=classic;startFill=1;dashed=1;" edge="1" parent="1" source="kafka-pod" target="zsv6uN8H7PlLHwyfJL23-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kafka-pod" value="Kafka Broker&#xa;(Apache Kafka)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="500" y="200" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="processing-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: data-processing&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;dashed=1;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="320" y="400" width="320" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="spark-driver" value="Spark Driver&#xa;(Batch Job)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="490" y="440" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="storage-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: data-storage&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;dashed=1;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="760" y="400" width="320" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="minio-pod" value="MinIO Server&#xa;(Object Storage)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="780" y="440" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="clickhouse-pod" value="ClickHouse&#xa;(Analytics DB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="980" y="440" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="api-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: reporting-api&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;dashed=1;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="840" y="160" width="320" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-9" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;dashed=1;startArrow=classic;startFill=1;" edge="1" parent="1" source="api-pod" target="redis-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-10" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="api-pod" target="external-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="api-pod" value="Reporting API&#xa;(FastAPI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="180" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="redis-pod" value="Redis Cache&#xa;(In-Memory)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="860" y="265" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="monitoring-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: monitoring&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;dashed=1;verticalAlign=top;" parent="1" vertex="1">
+          <mxGeometry x="1230" y="160" width="320" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="prometheus-pod" value="Prometheus&#xa;(Metrics)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;sketch=1;curveFitting=1;jiggle=2;" parent="1" vertex="1">
+          <mxGeometry x="1250" y="180" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="eogcYPqlzVZFXmO-y1sq-3" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="grafana-pod" target="external-grafana">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="grafana-pod" value="Grafana&#xa;(Dashboards)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;sketch=1;curveFitting=1;jiggle=2;" parent="1" vertex="1">
+          <mxGeometry x="1250" y="260" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="alertmanager-pod" value="Alertmanager&#xa;(Alerts)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;sketch=1;curveFitting=1;jiggle=2;" parent="1" vertex="1">
+          <mxGeometry x="1350" y="260" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="eogcYPqlzVZFXmO-y1sq-4" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" edge="1" parent="1" source="ingress" target="ingestion-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eogcYPqlzVZFXmO-y1sq-7" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="external-ingestion" target="ingress">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="external-ingestion" value="External Endpoint&#xa;/api/sensors" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="320" y="645" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="external-api" value="External Endpoint&#xa;/api/reports" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="930" y="645" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="external-grafana" value="External Endpoint&#xa;/grafana" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="1240" y="645" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="flow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#000000;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" parent="1" source="ingestion-pod" target="kafka-pod" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="monitor1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#999999;dashed=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" parent="1" source="prometheus-pod" target="ingestion-pod" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1200" y="120" />
+              <mxPoint x="200" y="120" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="monitor2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#999999;dashed=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="prometheus-pod" target="kafka-pod" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1270" y="120" />
+              <mxPoint x="540" y="120" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="monitor3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#999999;dashed=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="prometheus-pod" target="api-pod" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ByNNnp0bx5W4h10QtljW-1" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="550" y="770" width="500" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-box" value="&lt;span style=&quot;font-weight: 700;&quot;&gt;Legend&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;dashed=1;verticalAlign=top;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry width="500" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-namespace" value="Namespace" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=8;dashed=1;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="20" y="40" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-pod" value="Pod/Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="90" y="40" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-config" value="Config/Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=8;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="160" y="40" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-service" value="K8s Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=8;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="230" y="40" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-dataflow" value="───────" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;color=#0066CC;fontFamily=monospace;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="20" y="70" width="50" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-dataflow-text" value="Data Flow" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="80" y="70" width="70" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-monitoring" value="- - - - -" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;color=#999999;fontFamily=monospace;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="20" y="90" width="50" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-monitoring-text" value="Monitoring" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="80" y="90" width="70" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-cluster" value="K8s Cluster" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f3ff;strokeColor=#0066cc;fontSize=8;dashed=1;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="160" y="70" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-external" value="External Access" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;fontSize=8;dashed=1;" parent="ByNNnp0bx5W4h10QtljW-1" vertex="1">
+          <mxGeometry x="230" y="70" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ingress" value="NGINX Ingress&#xa;Controller" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="180" y="645" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-5" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;exitX=0.5;exitY=1;exitDx=0;exitDy=0;startArrow=classic;startFill=1;" edge="1" parent="1" source="kafka-pod" target="spark-driver">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-6" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="zsv6uN8H7PlLHwyfJL23-1" target="minio-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-1" value="Kafka Connector&lt;br&gt;(Archiv)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="260" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-7" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="zsv6uN8H7PlLHwyfJL23-2" target="clickhouse-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-2" value="Kafka Connector&lt;br&gt;(Report)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="260" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="zsv6uN8H7PlLHwyfJL23-8" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="clickhouse-pod" target="api-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="FI3t-LQHmamg2wMvcI12" name="Seite-4">
+    <mxGraphModel dx="1425" dy="828" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Data Engineering System - Kubernetes Cluster Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="20" width="500" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cluster-box" value="&lt;span style=&quot;font-size: 14px; font-weight: 700; text-align: left;&quot;&gt;Kubernetes Cluster (Local)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f3ff;strokeColor=#0066cc;strokeWidth=3;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="50" y="80" width="1500" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ingestion-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: data-ingestion&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="160" y="140" width="280" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="ingestion-pod" value="Ingestion API&#xa;(FastAPI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="180" y="180" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="kafka-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: message-queue&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="480" y="140" width="400" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="kafka-pod" value="Kafka Broker&#xa;(Apache Kafka)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="180" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="kafka-connect-s3" value="Kafka Connect&#xa;S3 Connector" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="180" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="kafka-connect-ch" value="Kafka Connect&#xa;ClickHouse Connector" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="180" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="processing-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: data-processing&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="160" y="380" width="280" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="spark-driver" value="Spark Driver&#xa;(Batch Job)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="270" y="420" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="storage-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: data-storage&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="480" y="380" width="320" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="minio-pod" value="MinIO Server&#xa;(Object Storage)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="420" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="clickhouse-pod" value="ClickHouse&#xa;(Analytics DB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="420" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="api-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: reporting-api&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="840" y="140" width="280" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="eogcYPqlzVZFXmO-y1sq-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;strokeColor=#000000;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="api-pod" target="external-ingestion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="api-pod" value="Reporting API&#xa;(FastAPI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="860" y="180" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="redis-pod" value="Redis Cache&#xa;(In-Memory)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="990" y="240" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="monitoring-ns" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;Namespace: monitoring&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="140" width="280" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="prometheus-pod" value="Prometheus&#xa;(Metrics)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;sketch=1;curveFitting=1;jiggle=2;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="180" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="grafana-pod" value="Grafana&#xa;(Dashboards)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;sketch=1;curveFitting=1;jiggle=2;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="260" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="alertmanager-pod" value="Alertmanager&#xa;(Alerts)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;sketch=1;curveFitting=1;jiggle=2;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="260" width="80" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="external-box" value="&lt;span style=&quot;font-weight: 700; text-align: left;&quot;&gt;External Access &amp;amp; Load Balancing&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;strokeWidth=2;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="160" y="610" width="1280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ingress" value="NGINX Ingress&#xa;Controller" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="280" y="650" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="external-ingestion" value="External Endpoint&#xa;/api/sensors" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="920" y="650" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="external-api" value="External Endpoint&#xa;/api/reports" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="410" y="650" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="external-grafana" value="External Endpoint&#xa;/grafana" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="550" y="650" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="resources-box" value="&lt;span style=&quot;font-size: 11px; font-weight: 700; text-align: left;&quot;&gt;Cluster Resources&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;font-size: 10px; text-align: left;&quot;&gt;Nodes: 3-5 | CPU: 16+ cores | Memory: 32+ GB | Storage: 500+ GB&lt;/span&gt;&lt;span style=&quot;font-size: 11px; font-weight: 700; text-align: left;&quot;&gt;&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="650" width="350" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="flow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#000000;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="ingestion-pod" target="kafka-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#000000;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="kafka-pod" target="spark-driver">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="460" y="218" />
+              <mxPoint x="460" y="360" />
+              <mxPoint x="310" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow3-new" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#e85d04;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="spark-driver" target="kafka-pod">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="310" y="520" />
+              <mxPoint x="420" y="520" />
+              <mxPoint x="420" y="260" />
+              <mxPoint x="520" y="260" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow4-kafka-s3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#2d6a4f;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="kafka-pod" target="kafka-connect-s3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow5-kafka-ch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#2d6a4f;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="kafka-connect-s3" target="kafka-connect-ch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="flow6-s3-storage" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d79b00;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="kafka-connect-s3" target="minio-pod">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="360" />
+              <mxPoint x="540" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow7-ch-storage" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" edge="1" parent="1" source="kafka-connect-ch" target="clickhouse-pod">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="740" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow8-api-query" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="clickhouse-pod" target="api-pod">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="740" y="360" />
+              <mxPoint x="820" y="360" />
+              <mxPoint x="820" y="218" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="monitor1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#999999;dashed=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="prometheus-pod" target="ingestion-pod">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1200" y="120" />
+              <mxPoint x="200" y="120" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="monitor2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#999999;dashed=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="prometheus-pod" target="kafka-pod">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1200" y="120" />
+              <mxPoint x="540" y="120" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="monitor3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#999999;dashed=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="prometheus-pod" target="api-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ByNNnp0bx5W4h10QtljW-1" value="" style="group" connectable="0" vertex="1" parent="1">
+          <mxGeometry x="550" y="770" width="500" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-box" value="&lt;span style=&quot;font-weight: 700;&quot;&gt;Legend&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;dashed=1;verticalAlign=top;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry width="500" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-namespace" value="Namespace" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=8;dashed=1;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="20" y="40" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-pod" value="Pod/Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="90" y="40" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-config" value="Config/Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=8;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="160" y="40" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-service" value="K8s Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=8;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="230" y="40" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-dataflow" value="───────" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;color=#000000;fontFamily=monospace;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="20" y="70" width="50" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-dataflow-text" value="Raw Data Flow" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="80" y="70" width="70" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-processed" value="───────" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;color=#e85d04;fontFamily=monospace;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="160" y="70" width="50" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-processed-text" value="Processed Data" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="220" y="70" width="80" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-kafka-connect" value="───────" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;color=#2d6a4f;fontFamily=monospace;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="320" y="70" width="50" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-kafka-connect-text" value="Kafka Connect" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="380" y="70" width="80" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-monitoring" value="- - - - -" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;color=#999999;fontFamily=monospace;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="20" y="90" width="50" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-monitoring-text" value="Monitoring" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="80" y="90" width="70" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-cluster" value="K8s Cluster" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f3ff;strokeColor=#0066cc;fontSize=8;dashed=1;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="160" y="90" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-external" value="External Access" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;fontSize=8;dashed=1;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="230" y="90" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-optional" value="Optional" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=8;sketch=1;curveFitting=1;jiggle=2;" vertex="1" parent="ByNNnp0bx5W4h10QtljW-1">
+          <mxGeometry x="300" y="90" width="60" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
