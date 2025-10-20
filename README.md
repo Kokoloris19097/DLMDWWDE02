@@ -7,4 +7,11 @@ Master Data Engineering - System, was in der Lage ist, kontinuierlich massive Da
 - Kubectl (winget install -e --id Kubernetes.kubectl)
 - Helm (winget install Helm.Helm)
 - kubectl
-- 
+
+## Architektur
+
+### Datenfluss
+![Datenflussdiagramm](doku/Datenfluss.jpg)
+
+### K8s-Architektur
+![Kubernetes-Architektur](doku/K8s-Architektur.jpg)
