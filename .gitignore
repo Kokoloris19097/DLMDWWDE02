@@ -1,0 +1,64 @@
+#remove dabase folders
+*.sqlite3
+db/
+cachedb/
+
+# asdf
+.tool-versions
+
+# Installer logs
+pip-log.txt
+
+# log files:
+*.log
+*.bkp
+
+# Environments
+.env
+*.ini
+*/mysecret*.json
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.dcignore
+
+# VSCode directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Byte-compiled / optimized / DLL files
+wsinsights/__pycache__/
+*.py[cod]
+*.pyc
+*$py.class
+
+# Distribution / packaging
+.Python
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Snyk ignore
+.dcignore
+variables.env
