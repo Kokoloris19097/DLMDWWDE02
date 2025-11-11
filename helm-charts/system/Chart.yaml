@@ -1,5 +1,5 @@
 apiVersion: v2
-name: system
+name: system-cluster
 description: A Helm chart for a Data Engineering system with Kafka, ClickHouse, MinIO, and monitoring
 type: application
 version: 0.0.1
