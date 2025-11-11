@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: messaging
+  labels:
+    name: messaging
+    component: messaging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: api
+  labels:
+    name: api
+    component: api
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    component: monitoring
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: api
+  labels:
+    name: api
+    component: api

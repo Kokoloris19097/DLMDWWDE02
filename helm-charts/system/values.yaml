@@ -7,8 +7,33 @@ replicaCount: 1
 image:
   repository: nginx
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
   tag: ""
+
+kafka:
+  namespace: messaging
+  image:
+    repository: apache/kafka
+    tag: "4.1.0"
+    pullPolicy: IfNotPresent
+  controller:
+    replicaCount: 2
+    env:
+      KAFKA_PROCESS_ROLES: "controller"
+      KAFKA_LISTENERS: "CONTROLLER://:9093"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-controller-0.kafka-controller:9093,2@kafka-controller-1.kafka-controller:9093,3@kafka-controller-2.kafka-controller:9093"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+  broker:
+    replicaCount: 2
+    env:
+      KAFKA_PROCESS_ROLES: "broker"
+      KAFKA_LISTENERS: "PLAINTEXT://:19092,PLAINTEXT_HOST://:9092"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-controller-0.kafka-controller:9093,2@kafka-controller-1.kafka-controller:9093,3@kafka-controller-2.kafka-controller:9093"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
 
 imagePullSecrets: []
 nameOverride: ""
