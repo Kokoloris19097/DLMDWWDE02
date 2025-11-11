@@ -18,6 +18,7 @@ kafka:
   controller:
     replicaCount: 2
     env:
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" # Random-ID
       KAFKA_PROCESS_ROLES: "controller"
       KAFKA_LISTENERS: "CONTROLLER://:9093"
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
@@ -27,6 +28,7 @@ kafka:
   broker:
     replicaCount: 2
     env:
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" # Random-ID
       KAFKA_PROCESS_ROLES: "broker"
       KAFKA_LISTENERS: "PLAINTEXT://:19092,PLAINTEXT_HOST://:9092"
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
