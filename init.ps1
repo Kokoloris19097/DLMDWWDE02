@@ -1,21 +1,65 @@
 ﻿# Installation Script
+$clusterName = "system-cluster"
+$chartPath = "helm-charts\$clusterName"
 Write-Host "System Cluster Installation" -ForegroundColor Green
 try {
-    # 1. Kind Cluster erstellen/prüfen
-    Write-Host "[1/5] Prüfe Kind Cluster..." -ForegroundColor Yellow
-    $clusterName = "system-cluster"
+    # 0. Prerequisites prüfen
+    Write-Host "[0/5] Prüfe Prerequisites..." -ForegroundColor Yellow
+    $missingTools = @()
+
+    # Kind prüfen
+    if (-not (Get-Command kind -ErrorAction SilentlyContinue)) {
+        Write-Host "  Kind nicht gefunden, versuche Installation..." -ForegroundColor Cyan
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            winget install Kubernetes.kind --silent --accept-source-agreements --accept-package-agreements
+            if ($LASTEXITCODE -ne 0) { $missingTools += "kind" }
+            else { Write-Host "  ✓ Kind installiert" -ForegroundColor Green }
+        } else {
+            $missingTools += "kind"
+        }
+    } else {
+        Write-Host "  ✓ Kind vorhanden" -ForegroundColor Green
+    }
+
+    # Kubectl prüfen
+    if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) {
+        Write-Host "  Kubectl nicht gefunden, versuche Installation..." -ForegroundColor Cyan
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            winget install Kubernetes.kubectl --silent --accept-source-agreements --accept-package-agreements
+            if ($LASTEXITCODE -ne 0) { $missingTools += "kubectl" }
+            else { Write-Host "  ✓ Kubectl installiert" -ForegroundColor Green }
+        } else {
+            $missingTools += "kubectl"
+        }
+    } else {
+        Write-Host "  ✓ Kubectl vorhanden" -ForegroundColor Green
+    }
+
+    if ($missingTools.Count -gt 0) {
+        Write-Error @"
+Folgende Tools konnten nicht installiert werden: $($missingTools -join ', ')
+
+Bitte manuell installieren:
+  winget install Kubernetes.kind
+  winget install Kubernetes.kubectl
+"@
+        exit 1
+    }
+
+    # 1. Cluster erstellen/prüfen
+    Write-Host "[1/5] Prüfe Cluster..." -ForegroundColor Yellow
     $clusterExists = kind get clusters 2>$null | Select-String -Pattern "^$clusterName$"
 
     if (-not $clusterExists) {
-        Write-Host "Erstelle neuen Kind Cluster '$clusterName'..." -ForegroundColor Cyan
+        Write-Host "Erstelle neuen Cluster '$clusterName'..." -ForegroundColor Cyan
         kind create cluster --name $clusterName
         if ($LASTEXITCODE -ne 0) {
-            Write-Error "Kind Cluster-Erstellung fehlgeschlagen!"
+            Write-Error "Cluster-Erstellung fehlgeschlagen!"
             exit 1
         }
-        Write-Host "✓ Kind Cluster erstellt" -ForegroundColor Green
+        Write-Host "✓ Cluster erstellt" -ForegroundColor Green
     } else {
-        Write-Host "✓ Kind Cluster '$clusterName' existiert bereits" -ForegroundColor Green
+        Write-Host "✓ Cluster vorhanden" -ForegroundColor Green
     }
 
     # 2. Cluster Check
@@ -29,7 +73,7 @@ try {
 
     # 3. Chart Lint
     Write-Host "[3/5] Validiere Helm Chart..." -ForegroundColor Yellow
-    Push-Location helm-charts\$clusterName
+    Push-Location $chartPath
     helm lint .
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Helm Chart hat Fehler!"
