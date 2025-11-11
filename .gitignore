@@ -59,6 +59,4 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Snyk ignore
-.dcignore
-variables.env
+.github/*
