@@ -17,6 +17,13 @@ kafka:
     pullPolicy: IfNotPresent
   controller:
     replicaCount: 2
+    resources:
+      limits:
+        cpu: "1000m"
+        memory: "2Gi"
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
     env:
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" # Random-ID
       KAFKA_PROCESS_ROLES: "controller"
@@ -27,6 +34,13 @@ kafka:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
   broker:
     replicaCount: 2
+    resources:
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+      requests:
+        cpu: "1000m"
+        memory: "2Gi"
     env:
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" # Random-ID
       KAFKA_PROCESS_ROLES: "broker"
