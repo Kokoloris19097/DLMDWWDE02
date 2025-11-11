@@ -1,0 +1,182 @@
+# Global Configuration
+global:
+  platformName: data-engineering-platform
+  storageClass: standard
+  imageRegistry: docker.io
+
+# Namespace Configuration
+namespaces:
+  api: api
+  messaging: messaging
+  data: data
+  monitoring: monitoring
+
+# Ingestion API Configuration
+ingestionApi:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: data-engineering/ingestion-api
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Reporting API Configuration
+reportingApi:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: data-engineering/reporting-api
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8001
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Data Processor Configuration
+dataProcessor:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: data-engineering/data-processor
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 2
+      memory: 4Gi
+    requests:
+      cpu: 1
+      memory: 2Gi
+
+# External Dependencies
+kafka:
+  enabled: true
+  replicas: 1
+  clusterId: "MkU3OEVBNTcwNTJENDM2Qk"
+  image:
+    repository: apache/kafka
+    tag: "4.0.1"
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    limits:
+      cpu: 1
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "8.2.2-alpine3.22"
+  password: "redis-password"
+  maxMemory: "256mb"
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+clickhouse:
+  enabled: true
+  version: "latest"
+  replicas: 1
+  password: "clickhouse-password"
+  persistence:
+    enabled: true
+    size: 20Gi
+  resources:
+    limits:
+      cpu: 2
+      memory: 4Gi
+    requests:
+      cpu: 1
+      memory: 2Gi
+
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: "latest"
+  rootUser: "admin"
+  rootPassword: "minio-secret"
+  persistence:
+    enabled: true
+    size: 50Gi
+  resources:
+    limits:
+      cpu: 1
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+# Monitoring Configuration
+monitoring:
+  prometheus:
+    enabled: true
+    image:
+      repository: prom/prometheus
+      tag: "v3.7.1"
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 1
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  grafana:
+    enabled: true
+    image:
+      repository: grafana/grafana
+      tag: "main-ubuntu"
+    adminPassword: "grafana-admin"
+    persistence:
+      enabled: true
+      size: 5Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+
+# Ingress Configuration
+ingress:
+  enabled: true
+  className: nginx
+  host: data-platform.local
+  nginx:
+    enabled: true
+    controller:
+      service:
+        type: NodePort

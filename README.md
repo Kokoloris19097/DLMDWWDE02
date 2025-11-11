@@ -69,3 +69,15 @@ Desweitern wird ein Monitoring durch Prometheus und Grafana eingeplant. Promethe
 
 ## Inbetriebnahme
 - Erstellen einer venv mit `python -m venv venv`
+- `Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser`
+- öffnen der venv `.\.venv\Scripts\Activate.ps1`
+- Requirements installieren
+```powershell
+winget install Helm.Helm
+winget install Kubernetes.kind
+kind create cluster --config kind-config.yaml
+kubectl cluster-info --context kind-data-engineering
+kubectl get nodes
+helm dependency update
+helm install data-platform . -f values-custom.yaml
+```

@@ -1,0 +1,98 @@
+{{- if .Values.clickhouse.enabled }}
+# ClickHouse Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clickhouse
+  namespace: {{ .Values.namespaces.data }}
+  labels:
+    app: clickhouse
+    component: analytics
+spec:
+  replicas: {{ .Values.clickhouse.replicas }}
+  selector:
+    matchLabels:
+      app: clickhouse
+  template:
+    metadata:
+      labels:
+        app: clickhouse
+        component: analytics
+    spec:
+      containers:
+        - name: clickhouse
+          image: clickhouse/clickhouse-server:{{ .Values.clickhouse.version }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8123
+              protocol: TCP
+            - name: native
+              containerPort: 9000
+              protocol: TCP
+          env:
+            - name: CLICKHOUSE_DB
+              value: "analytics"
+            - name: CLICKHOUSE_USER
+              value: "default"
+            - name: CLICKHOUSE_PASSWORD
+              value: "{{ .Values.clickhouse.password }}"
+          volumeMounts:
+            - name: clickhouse-data
+              mountPath: /var/lib/clickhouse
+          resources:
+            limits:
+              cpu: {{ .Values.clickhouse.resources.limits.cpu }}
+              memory: {{ .Values.clickhouse.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.clickhouse.resources.requests.cpu }}
+              memory: {{ .Values.clickhouse.resources.requests.memory }}
+      volumes:
+        - name: clickhouse-data
+          {{- if .Values.clickhouse.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: clickhouse-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+# ClickHouse Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse
+  namespace: {{ .Values.namespaces.data }}
+  labels:
+    app: clickhouse
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8123
+      targetPort: 8123
+      protocol: TCP
+      name: http
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+      name: native
+  selector:
+    app: clickhouse
+---
+# ClickHouse PersistentVolumeClaim
+{{- if .Values.clickhouse.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clickhouse-pvc
+  namespace: {{ .Values.namespaces.data }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.clickhouse.persistence.size }}
+  {{- if .Values.global.storageClass }}
+  storageClassName: {{ .Values.global.storageClass }}
+  {{- end }}
+{{- end }}
+{{- end }}

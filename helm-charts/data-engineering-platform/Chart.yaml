@@ -1,0 +1,15 @@
+apiVersion: v2
+name: data-engineering-platform
+description: A data engineering platform with real-time streaming, analytics, and monitoring
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+icon: https://raw.githubusercontent.com/cncf/artwork/master/projects/kubernetes/icon/color/kubernetes-icon-color.svg
+
+maintainers:
+  - name: Patrick Luber
+    email: patrick.luber@iu-study.org
+
+home: https://github.com/Kokoloris19097/DLMDWWDE02
+sources:
+  - https://github.com/Kokoloris19097/DLMDWWDE02
