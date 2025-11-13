@@ -83,7 +83,18 @@ Bitte manuell installieren:
 
     # 4. Installation
     Write-Host "[4/5] Installiere Kafka Cluster..." -ForegroundColor Yellow
-    helm install $clusterName . --create-namespace --wait --timeout=600s
+
+    # Prüfen ob Release bereits existiert
+    $releaseExists = helm list -q | Select-String -Pattern "^$clusterName$"
+
+    if ($releaseExists) {
+        Write-Host "Upgrade bestehender Installation..." -ForegroundColor Cyan
+        helm upgrade $clusterName . --wait --timeout=600s
+    } else {
+        Write-Host "Neue Installation..." -ForegroundColor Cyan
+        helm install $clusterName . --create-namespace --wait --timeout=600s
+    }
+
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Installation fehlgeschlagen!"
         exit 1
