@@ -21,11 +21,3 @@ metadata:
   labels:
     name: monitoring
     component: monitoring
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: api
-  labels:
-    name: api
-    component: api

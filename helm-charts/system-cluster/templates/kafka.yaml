@@ -26,23 +26,21 @@ spec:
         image: "{{ .Values.kafka.image.repository }}:{{ .Values.kafka.image.tag }}"
         imagePullPolicy: {{ .Values.kafka.image.pullPolicy }}
         ports:
-        - name: controller
-          containerPort: 9093
-          protocol: TCP
-        resources:
-          {{- toYaml .Values.kafka.controller.resources | nindent 10 }}
+        - containerPort: 9093
         env:
-        - name: KAFKA_NODE_ID
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
         {{- range $key, $value := .Values.kafka.controller.env }}
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
+        command:
+        - /bin/bash
+        - -c
+        - |
+          export KAFKA_NODE_ID=${HOSTNAME##*-}
+          exec /etc/kafka/docker/run
 
 ---
-# Kontroller Kommunikations-Service (Headless)
+# Kafka Controller Service (Headless)
 apiVersion: v1
 kind: Service
 metadata:
@@ -52,14 +50,9 @@ metadata:
     app: kafka
     component: controller
 spec:
-  type: ClusterIP
   clusterIP: None
-  publishNotReadyAddresses: true
   ports:
-  - name: controller
-    port: 9093
-    targetPort: 9093
-    protocol: TCP
+  - port: 9093
   selector:
     app: kafka
     component: controller
@@ -90,34 +83,23 @@ spec:
       containers:
       - name: kafka
         image: "{{ .Values.kafka.image.repository }}:{{ .Values.kafka.image.tag }}"
-        imagePullPolicy: {{ .Values.kafka.image.pullPolicy }}
         ports:
-        - name: plaintext
-          containerPort: 19092
-          protocol: TCP
-        - name: external
-          containerPort: 9092
-          protocol: TCP
-        resources:
-          {{- toYaml .Values.kafka.broker.resources | nindent 10 }}
+        - containerPort: 9092
         env:
-        - name: KAFKA_NODE_ID
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: KAFKA_ADVERTISED_LISTENERS
-          value: "PLAINTEXT://$(POD_NAME).kafka-broker.messaging.svc.cluster.local:19092,PLAINTEXT_HOST://$(POD_NAME).kafka-broker.messaging.svc.cluster.local:9092"
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
         {{- range $key, $value := .Values.kafka.broker.env }}
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
+        command:
+        - /bin/bash
+        - -c
+        - |
+          export KAFKA_NODE_ID=$((${HOSTNAME##*-} + 2))
+          export KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://$(hostname -f):9092"
+          exec /etc/kafka/docker/run
 
 ---
-# Kafka Broker Kommunikations-Service (Headless)
+# Kafka Broker Service (Headless)
 apiVersion: v1
 kind: Service
 metadata:
@@ -127,24 +109,15 @@ metadata:
     app: kafka
     component: broker
 spec:
-  type: ClusterIP
   clusterIP: None
-  publishNotReadyAddresses: true
   ports:
-  - name: plaintext
-    port: 19092
-    targetPort: 19092
-    protocol: TCP
-  - name: external
-    port: 9092
-    targetPort: 9092
-    protocol: TCP
+  - port: 9092
   selector:
     app: kafka
     component: broker
 
 ---
-# Kafka Broker Service (für Client-Zugriff)
+# Kafka Client Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -154,12 +127,8 @@ metadata:
     app: kafka
     component: broker
 spec:
-  type: ClusterIP
   ports:
-  - name: broker
-    port: 9092
-    targetPort: 9092
-    protocol: TCP
+  - port: 9092
   selector:
     app: kafka
     component: broker
