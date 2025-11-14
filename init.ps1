@@ -1,6 +1,6 @@
 ﻿# Installation Script
 $clusterName = "system-cluster"
-$chartPath = "helm-charts\$clusterName"
+$chartPath = "helm-charts/$clusterName"
 Write-Host "System Cluster Installation" -ForegroundColor Green
 try {
     # 0. Prerequisites prüfen
@@ -11,7 +11,7 @@ try {
     if (-not (Get-Command kind -ErrorAction SilentlyContinue)) {
         Write-Host "  Kind nicht gefunden, versuche Installation..." -ForegroundColor Cyan
         if (Get-Command winget -ErrorAction SilentlyContinue) {
-            winget install Kubernetes.kind --silent --accept-source-agreements --accept-package-agreements
+            winget install Kubernetes.kind
             if ($LASTEXITCODE -ne 0) { $missingTools += "kind" }
             else { Write-Host "  ✓ Kind installiert" -ForegroundColor Green }
         } else {
@@ -25,7 +25,7 @@ try {
     if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) {
         Write-Host "  Kubectl nicht gefunden, versuche Installation..." -ForegroundColor Cyan
         if (Get-Command winget -ErrorAction SilentlyContinue) {
-            winget install Kubernetes.kubectl --silent --accept-source-agreements --accept-package-agreements
+            winget install Kubernetes.kubectl
             if ($LASTEXITCODE -ne 0) { $missingTools += "kubectl" }
             else { Write-Host "  ✓ Kubectl installiert" -ForegroundColor Green }
         } else {
@@ -33,6 +33,20 @@ try {
         }
     } else {
         Write-Host "  ✓ Kubectl vorhanden" -ForegroundColor Green
+    }
+
+    # Helm prüfen
+    if (-not (Get-Command helm -ErrorAction SilentlyContinue)) {
+        Write-Host "  Helm nicht gefunden, versuche Installation..." -ForegroundColor Cyan
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            winget install Helm.Helm
+            if ($LASTEXITCODE -ne 0) { $missingTools += "helm" }
+            else { Write-Host "  ✓ Helm installiert" -ForegroundColor Green }
+        } else {
+            $missingTools += "helm"
+        }
+    } else {
+        Write-Host "  ✓ Helm vorhanden" -ForegroundColor Green
     }
 
     if ($missingTools.Count -gt 0) {
@@ -84,16 +98,25 @@ Bitte manuell installieren:
     # 4. Installation
     Write-Host "[4/5] Installiere Kafka Cluster..." -ForegroundColor Yellow
 
-    # Prüfen ob Release bereits existiert
+    # Prüfen ob Release bereits existiert oder hängt
     $releaseExists = helm list -q | Select-String -Pattern "^$clusterName$"
+    $releasePending = helm list --pending -q | Select-String -Pattern "^$clusterName$"
 
-    if ($releaseExists) {
-        Write-Host "Upgrade bestehender Installation..." -ForegroundColor Cyan
-        helm upgrade $clusterName . --wait --timeout=600s
-    } else {
-        Write-Host "Neue Installation..." -ForegroundColor Cyan
-        helm install $clusterName . --create-namespace --wait --timeout=600s
+    if ($releasePending) {
+        Write-Host "Hängende Operation gefunden. Bereinige..." -ForegroundColor Cyan
+        helm rollback $clusterName 0 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            helm uninstall $clusterName --wait
+        }
+        Start-Sleep -Seconds 5
+    } elseif ($releaseExists) {
+        Write-Host "Bestehende Installation gefunden. Deinstalliere..." -ForegroundColor Cyan
+        helm uninstall $clusterName --wait
+        Start-Sleep -Seconds 5
     }
+
+    Write-Host "Neue Installation..." -ForegroundColor Cyan
+    helm install $clusterName . --create-namespace --wait --timeout=600s
 
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Installation fehlgeschlagen!"
@@ -108,9 +131,7 @@ Bitte manuell installieren:
     Write-Host ""
     kubectl get svc -n messaging
     Write-Host ""
-    Write-Host "✓ Kafka Cluster läuft!" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Connection String: kafka.messaging.svc.cluster.local:9092" -ForegroundColor Cyan
+    Write-Host "✓ Cluster läuft!" -ForegroundColor Green
 }
 finally {
     Pop-Location
