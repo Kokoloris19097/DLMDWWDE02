@@ -13,12 +13,12 @@ try {
         if (Get-Command winget -ErrorAction SilentlyContinue) {
             winget install Kubernetes.kind
             if ($LASTEXITCODE -ne 0) { $missingTools += "kind" }
-            else { Write-Host "  ✓ Kind installiert" -ForegroundColor Green }
+            else { Write-Host "  Kind installiert" -ForegroundColor Green }
         } else {
             $missingTools += "kind"
         }
     } else {
-        Write-Host "  ✓ Kind vorhanden" -ForegroundColor Green
+        Write-Host "  Kind vorhanden" -ForegroundColor Green
     }
 
     # Kubectl prüfen
@@ -27,12 +27,12 @@ try {
         if (Get-Command winget -ErrorAction SilentlyContinue) {
             winget install Kubernetes.kubectl
             if ($LASTEXITCODE -ne 0) { $missingTools += "kubectl" }
-            else { Write-Host "  ✓ Kubectl installiert" -ForegroundColor Green }
+            else { Write-Host "  Kubectl installiert" -ForegroundColor Green }
         } else {
             $missingTools += "kubectl"
         }
     } else {
-        Write-Host "  ✓ Kubectl vorhanden" -ForegroundColor Green
+        Write-Host "  Kubectl vorhanden" -ForegroundColor Green
     }
 
     # Helm prüfen
@@ -41,12 +41,12 @@ try {
         if (Get-Command winget -ErrorAction SilentlyContinue) {
             winget install Helm.Helm
             if ($LASTEXITCODE -ne 0) { $missingTools += "helm" }
-            else { Write-Host "  ✓ Helm installiert" -ForegroundColor Green }
+            else { Write-Host "  Helm installiert" -ForegroundColor Green }
         } else {
             $missingTools += "helm"
         }
     } else {
-        Write-Host "  ✓ Helm vorhanden" -ForegroundColor Green
+        Write-Host "  Helm vorhanden" -ForegroundColor Green
     }
 
     if ($missingTools.Count -gt 0) {

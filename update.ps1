@@ -1,4 +1,4 @@
-# Update Script für Helm Chart
+﻿# Update Script für Helm Chart
 $releaseName = "system-cluster"
 $chartPath = "helm-charts\$releaseName"
 
@@ -44,8 +44,7 @@ try {
 
     # 4. Upgrade durchführen
     Write-Host "[4/4] Führe Upgrade durch..." -ForegroundColor Yellow
-    Write-Host "  Warte auf Pod-Rollout (max. 5 Minuten)..." -ForegroundColor Cyan
-
+    Write-Host "  Warte auf Rollout (max. 5 Minuten)..." -ForegroundColor Cyan
     helm upgrade $releaseName . --wait --timeout=300s
 
     if ($LASTEXITCODE -ne 0) {
