@@ -32,12 +32,7 @@ spec:
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
-        command:
-        - /bin/bash
-        - -c
-        - |
-          export KAFKA_NODE_ID=${HOSTNAME##*-}
-          exec /etc/kafka/docker/run
+        command: ["sh", "-c", "export KAFKA_NODE_ID=$${HOSTNAME##*-} && exec /etc/kafka/docker/run"]
 
 ---
 # Kafka Controller Service (Headless)
@@ -91,11 +86,13 @@ spec:
           value: {{ $value | quote }}
         {{- end }}
         command:
-        - /bin/bash
+        - sh
         - -c
         - |
-          export KAFKA_NODE_ID=$((${HOSTNAME##*-} + 2))
-          export KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://$(hostname -f):9092"
+          NODE_ID=$${HOSTNAME##*-}
+          OFFSET={{ .Values.kafka.controller.replicaCount }}
+          export KAFKA_NODE_ID=$$((NODE_ID + OFFSET))
+          export KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://$$(hostname -f):9092
           exec /etc/kafka/docker/run
 
 ---

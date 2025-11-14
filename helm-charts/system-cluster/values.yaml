@@ -30,7 +30,7 @@ kafka:
       KAFKA_LISTENERS: "CONTROLLER://:9093"
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "0@kafka-controller-0.kafka-controller:9093,1@kafka-controller-1.kafka-controller:9093"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "0@kafka-controller-0.kafka-controller.messaging.svc.cluster.local:9093,1@kafka-controller-1.kafka-controller.messaging.svc.cluster.local:9093"
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
   broker:
     replicaCount: 2
@@ -44,11 +44,12 @@ kafka:
     env:
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" # Random-ID
       KAFKA_PROCESS_ROLES: "broker"
+      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
       KAFKA_LISTENERS: "PLAINTEXT://:9092"
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "0@kafka-controller-0.kafka-controller:9093,1@kafka-controller-1.kafka-controller:9093"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "0@kafka-controller-0.kafka-controller.messaging.svc.cluster.local:9093,1@kafka-controller-1.kafka-controller.messaging.svc.cluster.local:9093"
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
 
 imagePullSecrets: []
