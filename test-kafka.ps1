@@ -97,7 +97,9 @@ try {
         --bootstrap-server $bootstrapServer `
         --topic $topic `
         --from-beginning `
-        --timeout-ms 20000
+        --max-messages 3 `
+        --timeout-ms 10000 `
+        --isolation-level read_uncommitted 2>&1
 
     $exitCode = $LASTEXITCODE
     Write-Host $consumerOutput

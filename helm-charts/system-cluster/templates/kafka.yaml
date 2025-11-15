@@ -32,7 +32,18 @@ spec:
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
-        command: ["sh", "-c", "export KAFKA_NODE_ID=$${HOSTNAME##*-} && exec /etc/kafka/docker/run"]
+        command:
+        - sh
+        - -c
+        - |
+          # Extrahiere Node ID aus Hostname
+          NODE_ID=$${HOSTNAME##*-}
+
+          echo "=== Controller Configuration ==="
+          echo "Node ID: $$NODE_ID"
+
+          # Übergebe Werte als Argumente an run-Script
+          exec /etc/kafka/docker/run KAFKA_NODE_ID=$$NODE_ID
 
 ---
 # Kafka Controller Service (Headless)
@@ -85,15 +96,30 @@ spec:
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         command:
         - sh
         - -c
         - |
+          # Berechne Node ID
           NODE_ID=$${HOSTNAME##*-}
           OFFSET={{ .Values.kafka.controller.replicaCount }}
-          export KAFKA_NODE_ID=$$((NODE_ID + OFFSET))
-          export KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://$$(hostname -f):9092
-          exec /etc/kafka/docker/run
+          BROKER_ID=$$((NODE_ID + OFFSET))
+
+          # Berechne FQDN
+          FQDN="$$(hostname -f)"
+
+          echo "=== Broker Configuration ==="
+          echo "Node ID: $$BROKER_ID"
+          echo "Advertised Listeners: PLAINTEXT://$$FQDN:9092"
+
+          # Übergebe Werte als Argumente an run-Script
+          exec /etc/kafka/docker/run \
+            KAFKA_NODE_ID=$$BROKER_ID \
+            KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://$$FQDN:9092
 
 ---
 # Kafka Broker Service (Headless)

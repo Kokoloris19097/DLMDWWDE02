@@ -51,6 +51,10 @@ kafka:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "0@kafka-controller-0.kafka-controller.messaging.svc.cluster.local:9093,1@kafka-controller-1.kafka-controller.messaging.svc.cluster.local:9093"
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: "50"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
 
 imagePullSecrets: []
 nameOverride: ""
