@@ -98,8 +98,7 @@ try {
         --topic $topic `
         --from-beginning `
         --max-messages 3 `
-        --timeout-ms 10000 `
-        --isolation-level read_uncommitted 2>&1
+        --timeout-ms 10000  2>&1
 
     $exitCode = $LASTEXITCODE
     Write-Host $consumerOutput
@@ -137,8 +136,6 @@ try {
     } else {
         Write-Host "Broker-Info abgerufen" -ForegroundColor Green
     }
-
-
 
     Write-Host "`n=== Alle Tests erfolgreich! ===" -ForegroundColor Green
     Write-Host "Kafka Cluster ist voll funktionsfähig." -ForegroundColor Cyan
