@@ -58,5 +58,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+helm-charts/**/charts/*.tgz
+*.tgz
+*.lock
 
 .github/*

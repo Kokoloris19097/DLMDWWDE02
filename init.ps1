@@ -68,7 +68,17 @@ Bitte manuell installieren:
 
     if (-not $clusterExists) {
         Write-Host "Erstelle neuen Cluster '$clusterName'..." -ForegroundColor Cyan
-        kind create cluster --name $clusterName --wait duration=120s
+
+        # Prüfe ob kind-config.yaml existiert
+        $kindConfig = Join-Path $PSScriptRoot "kind-config.yaml"
+        if (Test-Path $kindConfig) {
+            Write-Host "  Nutze Kind-Konfiguration..." -ForegroundColor Cyan
+            kind create cluster --config $kindConfig --wait 120s
+        } else {
+            Write-Warning "kind-config.yaml nicht gefunden. Erstelle Cluster ohne."
+            kind create cluster --name $clusterName --wait 120s
+        }
+
         if ($LASTEXITCODE -ne 0) {
             Write-Error "Cluster-Erstellung fehlgeschlagen!"
             exit 1
@@ -92,6 +102,15 @@ Bitte manuell installieren:
     #region 3. Chart Lint
     Write-Host "[3/5] Validiere Helm Chart..." -ForegroundColor Yellow
     Push-Location $chartPath
+
+    # Dependencies aktualisieren
+    Write-Host "Lade Chart Dependencies..." -ForegroundColor Cyan
+    helm dependency update
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Dependency Update fehlgeschlagen!"
+        exit 1
+    }
+
     helm lint .
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Helm Chart hat Fehler!"
@@ -100,34 +119,58 @@ Bitte manuell installieren:
     Write-Host "Chart valide" -ForegroundColor Green
     #endregion 3. Chart Lint
 
-    #region 4. Installation
-    Write-Host "[4/5] Installiere Kafka Cluster..." -ForegroundColor Yellow
+    #region 3.5. FastAPI Image bauen
+    Write-Host "[3.5/5] Baue FastAPI Image..." -ForegroundColor Yellow
+    Pop-Location  # Zurück zum Root-Verzeichnis
 
-    # Prüfen ob Release bereits existiert oder hängt
-    $releaseExists = helm list -q | Select-String -Pattern "^$clusterName$"
-    $releasePending = helm list --pending -q | Select-String -Pattern "^$clusterName$"
+    $deployScript = Join-Path $PSScriptRoot "fastapi\deploy-fastapi.ps1"
+    if (Test-Path $deployScript) {
+        & $deployScript
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "FastAPI Deployment fehlgeschlagen!"
+            exit 1
+        }
+    } else {
+        Write-Warning "fastapi\deploy-fastapi.ps1 nicht gefunden."
+        exit 1
+    }
+
+    Push-Location $chartPath  # Zurück zum Chart-Verzeichnis
+    #endregion 3.5. FastAPI Image bauen
+
+    #region 4. Installation
+    Write-Host "[4/5] Installiere System Cluster..." -ForegroundColor Yellow
+
+    # Prüfen ob Release bereits existiert (im default Namespace!)
+    $releases = helm list -n default -o json 2>$null | ConvertFrom-Json
+    $releaseExists = $releases | Where-Object { $_.name -eq $clusterName }
+    $releasePending = $releases | Where-Object { $_.name -eq $clusterName -and $_.status -eq "pending-install" }
 
     if ($releasePending) {
         Write-Host "Hängende Operation gefunden. Bereinige..." -ForegroundColor Cyan
-        helm rollback $clusterName 0 2>$null
+        helm rollback $clusterName 0 -n default 2>$null
         if ($LASTEXITCODE -ne 0) {
-            helm uninstall $clusterName --wait
+            helm uninstall $clusterName -n default --wait
         }
         Start-Sleep -Seconds 5
-    } elseif ($releaseExists) {
-        Write-Host "Bestehende Installation gefunden. Deinstalliere..." -ForegroundColor Cyan
-        helm uninstall $clusterName --wait
-        Start-Sleep -Seconds 5
+        $releaseExists = $null  # Nach Bereinigung neu prüfen
     }
 
-    Write-Host "Neue Installation..." -ForegroundColor Cyan
-    helm install $clusterName . --create-namespace --wait --timeout=600s
+    if ($releaseExists) {
+        Write-Host "Bestehende Installation gefunden (Revision: $($releaseExists.revision))..." -ForegroundColor Cyan
+        helm upgrade $clusterName . -n default --wait --timeout=600s
+        $action = "Upgrade"
+    } else {
+        Write-Host "Neue Installation..." -ForegroundColor Cyan
+        helm install $clusterName . -n default --create-namespace --wait --timeout=600s
+        $action = "Installation"
+    }
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Installation fehlgeschlagen!"
+        Write-Error "$action fehlgeschlagen!"
         exit 1
     }
-    Write-Host "Installation erfolgreich" -ForegroundColor Green
+    Write-Host "$action erfolgreich" -ForegroundColor Green
     #endregion 4. Installation
 
     #region 5. Status

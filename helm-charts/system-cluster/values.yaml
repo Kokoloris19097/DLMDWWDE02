@@ -162,3 +162,40 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# NGINX Ingress Controller Configuration
+ingress-nginx:
+  enabled: true
+  controller:
+    hostPort:
+      enabled: true
+      ports:
+        http: 80
+        https: 443
+    service:
+      type: NodePort
+      nodePorts:
+        http: 30080
+        https: 30443
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: false  # Nur wenn Prometheus installiert ist
+    admissionWebhooks:
+      enabled: false  # Deaktiviert für lokale Entwicklung (vermeidet TLS-Zertifikat-Probleme)
+  defaultBackend:
+    enabled: true
+    resources:
+      limits:
+        cpu: 50m
+        memory: 64Mi
+      requests:
+        cpu: 20m
+        memory: 32Mi
