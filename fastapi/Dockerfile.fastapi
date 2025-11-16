@@ -1,0 +1,35 @@
+FROM python:3.13.9-alpine3.22
+
+# Metadata
+LABEL description="FastAPI Ingestion Service für Sensor-Daten"
+
+# Build Dependencies (benötigt für kafka-python Compilation)
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    musl-dev \
+    linux-headers \
+    libffi-dev \
+    && apk add --no-cache \
+    libstdc++
+
+# Python Dependencies installieren
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && apk del .build-deps
+
+# Application Code
+COPY main.py .
+
+# Security: Non-root User
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+# Port exponieren
+EXPOSE 8000
+
+# Start Command
+CMD ["python", "main.py"]
