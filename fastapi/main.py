@@ -70,7 +70,8 @@ class SensorData(BaseModel):
     @classmethod
     def validate_timestamp(cls, v: datetime) -> datetime:
         """Validiert dass Timestamp nicht in der Zukunft liegt"""
-        if v > datetime.now():
+        now = datetime.now(v.tzinfo) if v.tzinfo else datetime.now()
+        if v > now:
             raise ValueError('Timestamp darf nicht in der Zukunft liegen')
         return v
 

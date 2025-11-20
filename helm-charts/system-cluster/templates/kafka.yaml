@@ -80,6 +80,14 @@ spec:
     matchLabels:
       app: kafka
       component: broker
+  volumeClaimTemplates:
+    - metadata:
+        name: kafka-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 5Gi
   template:
     metadata:
       labels:
@@ -120,7 +128,9 @@ spec:
           exec /etc/kafka/docker/run \
             KAFKA_NODE_ID=$$BROKER_ID \
             KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://$$FQDN:9092
-
+        volumeMounts:
+        - name: kafka-data
+          mountPath: /tmp/kraft-combined-logs
 ---
 # Kafka Broker Service (Headless)
 apiVersion: v1

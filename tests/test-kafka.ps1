@@ -19,6 +19,24 @@ try {
     }
     Write-Host "Pod bereit" -ForegroundColor Green
 
+    Write-Host "Lösche ggf. altes Test-Topic..." -ForegroundColor Yellow
+    kubectl exec -n $namespace $podName -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server $bootstrapServer --delete --topic $topic 2>$null | Out-Null
+        # Wiederhole die Prüfung bis das Topic wirklich gelöscht ist (max. 5 Versuche)
+        $maxTries = 5
+        $try = 0
+        do {
+            Start-Sleep -Seconds 1
+            $topicExists = kubectl exec -n $namespace $podName -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server $bootstrapServer --list | Select-String -Pattern "^$topic$"
+            $try++
+            if ($try % 2 -eq 0) {
+                Write-Host "  Erneute Löschversuch" -ForegroundColor Gray
+                kubectl exec -n $namespace $podName -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server $bootstrapServer --delete --topic $topic 2>$null | Out-Null
+            }
+        } while ($topicExists -and $try -lt $maxTries)
+        if ($topicExists) {
+            Write-Host "FEHLER: Topic existiert nach Löschversuch noch!" -ForegroundColor Red
+        }
+
     # 2. Topics auflisten
     Write-Host "`n[2/8] Liste Topics auf..." -ForegroundColor Yellow
     kubectl exec -n $namespace $podName -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server $bootstrapServer --list
@@ -34,9 +52,8 @@ try {
     kubectl exec -n $namespace $podName -- /opt/kafka/bin/kafka-topics.sh `
         --bootstrap-server $bootstrapServer `
         --create --topic $topic `
-        --partitions 3 `
-        --replication-factor 2 `
-        --if-not-exists
+        --partitions 1 `
+        --replication-factor 1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Topic konnte nicht erstellt werden" -ForegroundColor Red
         exit 1
@@ -44,16 +61,18 @@ try {
         Write-Host "Topic erstellt" -ForegroundColor Green
     }
 
-    # 4. Topic-Details anzeigen
-    Write-Host "`n[4/8] Topic-Details:" -ForegroundColor Yellow
-    kubectl exec -n $namespace $podName -- /opt/kafka/bin/kafka-topics.sh `
+    # 4. Topic-Details anzeigen und Partition prüfen
+    Write-Host "`n[4/8] Topic-Details und Partition:" -ForegroundColor Yellow
+    $topicDetails = kubectl exec -n $namespace $podName -- /opt/kafka/bin/kafka-topics.sh `
         --bootstrap-server $bootstrapServer `
         --describe --topic $topic
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "Topic-Details konnten nicht abgerufen werden" -ForegroundColor Red
+    Write-Host $topicDetails
+    $partitionCheck = $topicDetails | Select-String "PartitionCount: 1"
+    if ($partitionCheck -eq $null) {
+        Write-Host "FEHLER: Topic hat nicht genau eine Partition!" -ForegroundColor Red
         exit 1
     } else {
-        Write-Host "Topic-Details abgerufen" -ForegroundColor Green
+        Write-Host "PartitionCount: 1 erkannt und bereit" -ForegroundColor Green
     }
 
     # 5. Nachrichten senden
@@ -76,10 +95,6 @@ try {
     }
     Write-Host "$($messages.Count) Nachrichten erfolgreich gesendet" -ForegroundColor Green
 
-    # Warte auf Replikation
-    Write-Host "Warte auf Replikation..." -ForegroundColor Gray
-    Start-Sleep -Seconds 3
-
     # 6. Nachrichten lesen
     Write-Host "`n[6/8] Lese Nachrichten..." -ForegroundColor Yellow
 
@@ -98,6 +113,7 @@ try {
         --topic $topic `
         --from-beginning `
         --max-messages 3 `
+        --partition 0 `
         --timeout-ms 10000  2>&1
 
     $exitCode = $LASTEXITCODE
@@ -106,10 +122,10 @@ try {
     # Prüfe ob Nachrichten empfangen wurden
     if ($consumerOutput -match "Processed a total of 0 messages") {
         Write-Host "FEHLER: Keine Nachrichten im Topic gefunden!" -ForegroundColor Red
-        exit 1
+        throw "Keine Nachrichten im Topic gefunden"
     } elseif ($exitCode -ne 0) {
         Write-Host "Consumer-Fehler (Exit-Code: $exitCode)" -ForegroundColor Red
-        exit 1
+        throw "Consumer-Fehler aufgetreten"
     } else {
         Write-Host "Nachrichten erfolgreich empfangen" -ForegroundColor Green
     }
@@ -121,7 +137,7 @@ try {
         --delete --topic $topic
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Topic konnte nicht gelöscht werden" -ForegroundColor Red
-        exit 1
+        throw "Topic Löschung fehlgeschlagen"
     } else {
         Write-Host "Topic gelöscht" -ForegroundColor Green
     }
@@ -132,7 +148,7 @@ try {
         --bootstrap-server $bootstrapServer 2>$null | Select-Object -First 5
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Broker-Info konnte nicht abgerufen werden" -ForegroundColor Red
-        exit 1
+        throw "Broker-Info Abruf fehlgeschlagen"
     } else {
         Write-Host "Broker-Info abgerufen" -ForegroundColor Green
     }
