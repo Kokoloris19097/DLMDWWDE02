@@ -69,22 +69,24 @@ try {
     # 5. Prüfe ob Nachricht in Kafka ist
     Write-Host "`n[5/5] Prüfe Kafka Topic 'sensor-data'..." -ForegroundColor Yellow
 
-    # Kafka Console Consumer als Job starten
-    $kafkaConsumerJob = Start-Job -ScriptBlock {
-        param($sensorId, $namespace)
+    # Alle Partitionen des Topics mit dem Test-Pod abfragen
+    $topicDetails = kubectl exec -n $NAMESPACE_MESSAGING kafka-test -- /opt/kafka/bin/kafka-topics.sh `
+    --bootstrap-server kafka-broker.messaging.svc.cluster.local:9092 `
+    --describe --topic sensor-data
+    $topicDetails[1].trim()  -match 'Partition: (?<partid>\d[,\d]*)'
+    $partitions = ($Matches.partid -split ',') | ForEach-Object { [int]($_.Trim()) }
 
-        kubectl exec -n $namespace kafka-broker-0 -- `
+    $result = @()
+    foreach ($partition in $partitions) {
+        $output = kubectl exec -n $NAMESPACE_MESSAGING kafka-test -- `
             /opt/kafka/bin/kafka-console-consumer.sh `
-            --bootstrap-server localhost:9092 `
+            --bootstrap-server kafka-broker.messaging.svc.cluster.local:9092 `
             --topic sensor-data `
+            --partition $partition `
             --from-beginning `
             --timeout-ms 10000 2>$null | Select-String -Pattern $sensorId
-
-    } -ArgumentList $sensorId, $NAMESPACE_MESSAGING
-
-    # Warte auf Ergebnis
-    $result = Wait-Job $kafkaConsumerJob -Timeout $TEST_TIMEOUT | Receive-Job
-    Remove-Job $kafkaConsumerJob -Force
+        if ($output) { $result += $output }
+    }
 
     if ($result) {
         Write-Host "`nTEST ERFOLGREICH!" -ForegroundColor Green
@@ -95,11 +97,7 @@ try {
         try {
             $kafkaMessage = $result | ConvertFrom-Json
             Write-Host "`nVerifizierung:" -ForegroundColor Yellow
-            Write-Host "  Sensor ID: $($kafkaMessage.sensor_id)" -ForegroundColor White
-            Write-Host "  Timestamp: $($kafkaMessage.timestamp)" -ForegroundColor White
-            Write-Host "  Temperature: $($kafkaMessage.temperature)°C" -ForegroundColor White
-            Write-Host "  Humidity: $($kafkaMessage.humidity)%" -ForegroundColor White
-            Write-Host "  Location: $($kafkaMessage.location)" -ForegroundColor White
+            Write-Host " $($kafkaMessage)" -ForegroundColor White
 
             if ($kafkaMessage.sensor_id -eq $sensorId) {
                 Write-Host "`nSensor ID stimmt überein!" -ForegroundColor Green
@@ -112,14 +110,8 @@ try {
         $exitCode = 0
     }
     else {
-        Write-Host "`nTEST FEHLGESCHLAGEN!" -ForegroundColor Red
-        Write-Host "Nachricht wurde nicht in Kafka gefunden." -ForegroundColor Yellow
-        Write-Host "`nMögliche Ursachen:" -ForegroundColor Yellow
-        Write-Host "  - Kafka Producer Fehler in FastAPI" -ForegroundColor White
-        Write-Host "  - Kafka Topic 'sensor-data' existiert nicht" -ForegroundColor White
-        Write-Host "  - Kafka Broker nicht erreichbar" -ForegroundColor White
-
-        $exitCode = 1
+        Write-Host "`n TEST FEHLGESCHLAGEN!" -ForegroundColor Red
+        throw
     }
 
 }

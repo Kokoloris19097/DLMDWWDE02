@@ -158,11 +158,11 @@ Bitte manuell installieren:
 
     if ($releaseExists) {
         Write-Host "Bestehende Installation gefunden (Revision: $($releaseExists.revision))..." -ForegroundColor Cyan
-        helm upgrade $clusterName . -n default --wait --timeout=600s
+        helm upgrade $clusterName . -n default --wait --timeout=300s
         $action = "Upgrade"
     } else {
         Write-Host "Neue Installation..." -ForegroundColor Cyan
-        helm install $clusterName . -n default --create-namespace --wait --timeout=600s
+        helm install $clusterName . -n default --create-namespace --wait --timeout=300s
         $action = "Installation"
     }
 
