@@ -1,0 +1,14 @@
+# Apache Spark Dockerfile
+# DLMDWWDE02 Master Project
+FROM apache/spark:3.5.1
+
+USER root
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN apt-get update && apt-get install -y python3 python3-pip && \
+    pip3 install --no-cache-dir -r requirements.txt
+
+COPY main.py ./
+
+CMD ["/opt/spark/bin/spark-submit", "main.py"]
