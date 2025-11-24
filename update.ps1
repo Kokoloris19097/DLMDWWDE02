@@ -1,6 +1,7 @@
 ﻿# Update Script für Helm Chart
 $releaseName = "system-cluster"
 $chartPath = "helm-charts\$releaseName"
+$global:update_starttime = Get-Date
 
 Write-Host "Helm Chart Update" -ForegroundColor Green
 
@@ -78,15 +79,33 @@ try {
         Write-Host "  helm rollback $releaseName 0 --namespace default" -ForegroundColor Cyan
         exit 1
     }
-
-    Write-Host "Upgrade erfolgreich" -ForegroundColor Green
+    # Prüfe auf nicht-running fastapi-Pods und gebe deren Logs aus
+    try {
+        $pods = kubectl get pods --all-namespaces -o json | ConvertFrom-Json
+        $badPods = $pods.items | Where-Object {$_.status.phase -ne 'Running' -or
+            ($_.status.containerStatuses | Where-Object { $_.state.waiting -and $_.state.waiting.reason -eq 'CrashLoopBackOff' })
+        }
+        foreach ($pod in $badPods) {
+            $podName = $pod.metadata.name
+            $podNs = $pod.metadata.namespace
+            Write-Log "ERROR" "Pod $podName (Namespace: $podNs) ist nicht Running (Status: $($pod.status.phase)). Logs:"
+            kubectl logs $podName -n $podNs | ForEach-Object { Write-Host $_ }
+        }
+        if ($badPods.Count -gt 0) {
+            Write-Error "=== Upgrade fehlgeschlagen ==="
+        } else {
+            Write-Host "=== Upgrade erfolgreich ===" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "ERROR" "Fehler beim Auslesen der Pod-Logs: $_" -ForegroundColor Red
+    }
 
     # 5. Status anzeigen
     Write-Host "`n=== Pod Status ===" -ForegroundColor Yellow
-    kubectl get pods -n messaging
+    kubectl get pods -n default -A
 
     Write-Host "`n=== Service Status ===" -ForegroundColor Yellow
-    kubectl get svc -n messaging
+    kubectl get svc -n default -A
 
     Write-Host "`nUpdate abgeschlossen!" -ForegroundColor Green
 }
@@ -96,4 +115,7 @@ catch {
 }
 finally {
     Pop-Location
+    $delay = (Get-Date) - $update_starttime
+    Write-Host ("Dauer des Updates: {0}h {1}m {2}s" -f ([int]$delay.TotalHours), ([int]$delay.Minutes), ([int]$delay.Seconds)) -ForegroundColor Cyan
+
 }
