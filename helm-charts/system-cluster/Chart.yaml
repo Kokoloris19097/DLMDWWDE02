@@ -2,7 +2,7 @@ apiVersion: v2
 name: system-cluster
 description: A Helm chart for a Data Engineering system with Kafka, ClickHouse, MinIO, and monitoring
 type: application
-version: 0.4.0
+version: 0.4.1
 appVersion: "0.0.1"
 icon: https://github.com/Kokoloris19097/DLMDWWDE02/blob/main/logo.png
 
