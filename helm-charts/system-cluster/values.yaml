@@ -77,6 +77,23 @@ fastapi:
       enabled: false
       secretName: "fastapi-tls"
 
+clickhouse:
+  namespace: data
+  replicaCount: 1
+  image:
+    repository: clickhouse/clickhouse-server
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+  storage:
+    size: 10Gi
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

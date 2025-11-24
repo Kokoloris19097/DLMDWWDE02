@@ -17,6 +17,14 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: data
+  labels:
+    name: data
+    component: data
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: monitoring
   labels:
     name: monitoring
