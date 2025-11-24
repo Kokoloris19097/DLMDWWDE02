@@ -4,8 +4,8 @@ Empfängt Sensor-Daten via HTTP POST und schreibt in Kafka Topic
 """
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
-from kafka import KafkaProducer
-from kafka.errors import KafkaError
+from confluent_kafka import Producer
+from confluent_kafka import KafkaException
 import json
 import logging
 import os
@@ -32,32 +32,27 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Kafka Producer (Singleton)
-kafka_producer: Optional[KafkaProducer] = None
-
-
-def get_kafka_producer() -> KafkaProducer:
-    """Erstellt oder gibt existierenden Kafka Producer zurück"""
-    global kafka_producer
-
-    if kafka_producer is None:
-        logger.info(f"Initialisiere Kafka Producer: {KAFKA_BOOTSTRAP_SERVERS}")
+def get_kafka_producer() -> Producer:
+    """Erstellt oder gibt existierenden Confluent Kafka Producer zurück"""
+    if not hasattr(get_kafka_producer, "producer"):
+        logger.info(f"Initialisiere Confluent Kafka Producer: {KAFKA_BOOTSTRAP_SERVERS}")
         try:
-            kafka_producer = KafkaProducer(
-                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS.split(','),
-                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                key_serializer=lambda k: k.encode('utf-8') if k else None,
-                acks='all',
-                retries=3,
-                max_in_flight_requests_per_connection=1,
-                compression_type='gzip'
-            )
-            logger.info("Kafka Producer erfolgreich initialisiert")
+            conf = {
+                'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
+                'compression.codec': 'gzip',
+                'acks': 'all',
+                'retries': 3,
+                'socket.keepalive.enable': True,
+                'queue.buffering.max.messages': 100000,
+                'queue.buffering.max.ms': 1000,
+                'enable.idempotence': True
+            }
+            get_kafka_producer.producer = Producer(conf)
+            logger.info("Confluent Kafka Producer erfolgreich initialisiert")
         except Exception as e:
             logger.error(f"Fehler beim Initialisieren des Kafka Producers: {e}")
             raise
-
-    return kafka_producer
+    return get_kafka_producer.producer
 
 class SensorData(BaseModel):
     """Schema für eingehende Sensor-Daten"""
@@ -117,18 +112,14 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Schließt Kafka Producer beim Herunterfahren"""
-    global kafka_producer
-
     logger.info(f"{SERVICE_NAME} fährt herunter...")
-
-    if kafka_producer:
+    producer = getattr(get_kafka_producer, "producer", None)
+    if producer:
         try:
-            kafka_producer.flush()
-            kafka_producer.close()
+            producer.flush()
             logger.info("Kafka Producer erfolgreich geschlossen")
         except Exception as e:
             logger.error(f"Fehler beim Schließen des Kafka Producers: {e}")
-
     logger.info("Shutdown abgeschlossen")
 
 
@@ -147,8 +138,8 @@ async def readiness_check():
     """Readiness Check Endpoint für Kubernetes Readiness Probe"""
     try:
         producer = get_kafka_producer()
-        producer.bootstrap_connected()
-
+        # Test: Metadata abfragen (wirft Exception, wenn Broker nicht erreichbar)
+        metadata = producer.list_topics(timeout=5)
         return {
             "status": "ready",
             "service": SERVICE_NAME,
@@ -181,35 +172,51 @@ async def ingest_sensor_data(data: SensorData):
         }
 
         # Kafka Key = Sensor-ID (für Partitionierung)
-        message_key = data.sensor_id
+        message_key = data.sensor_id.encode('utf-8')
+        message_bytes = json.dumps(message_value).encode('utf-8')
 
         logger.info(f"Sende Daten an Kafka Topic '{KAFKA_TOPIC}' - Sensor: {data.sensor_id}")
 
-        # Sende an Kafka (synchron mit get() für sofortige Fehlerbehandlung)
-        future = producer.send(
+        # Callback für Delivery-Report
+        delivery_report = {}
+        def acked(err, msg):
+            if err is not None:
+                delivery_report['error'] = err
+            else:
+                delivery_report['partition'] = msg.partition()
+                delivery_report['offset'] = msg.offset()
+
+        # Sende an Kafka (asynchron, dann flush für Blockierung)
+        producer.produce(
             topic=KAFKA_TOPIC,
             key=message_key,
-            value=message_value
+            value=message_bytes,
+            callback=acked
         )
+        producer.flush(10)
 
-        # Warte auf Bestätigung
-        record_metadata = future.get(timeout=10)
+        if 'error' in delivery_report:
+            logger.error(f"Kafka Fehler beim Senden: {delivery_report['error']}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Kafka nicht verfügbar: {str(delivery_report['error'])}"
+            )
 
         logger.info(
-            f"Erfolgreich gesendet - Partition: {record_metadata.partition}, "
-            f"Offset: {record_metadata.offset}"
+            f"Erfolgreich gesendet - Partition: {delivery_report.get('partition')}, "
+            f"Offset: {delivery_report.get('offset')}"
         )
 
         return IngestionResponse(
             status="success",
             message="Sensor-Daten erfolgreich aufgenommen",
             sensor_id=data.sensor_id,
-            kafka_partition=record_metadata.partition,
-            kafka_offset=record_metadata.offset,
+            kafka_partition=delivery_report.get('partition', -1),
+            kafka_offset=delivery_report.get('offset', -1),
             timestamp=datetime.now()
         )
 
-    except KafkaError as e:
+    except KafkaException as e:
         logger.error(f"Kafka Fehler beim Senden: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
