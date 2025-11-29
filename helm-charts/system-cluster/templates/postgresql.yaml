@@ -1,0 +1,129 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql
+  namespace: {{ .Values.postgresql.namespace }}
+  labels:
+    app: postgresql
+    component: db
+spec:
+  serviceName: postgresql
+  replicas: {{ .Values.postgresql.replicaCount }}
+  selector:
+    matchLabels:
+      app: postgresql
+      component: db
+  volumeClaimTemplates:
+    - metadata:
+        name: postgresql-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.storage.size }}
+  template:
+    metadata:
+      labels:
+        app: postgresql
+        component: db
+    spec:
+      containers:
+      - name: postgresql
+        image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+        imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+        ports:
+        - name: postgresql
+          containerPort: 5432
+          protocol: TCP
+        env:
+        {{- range $key, $value := .Values.postgresql.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql/data
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
+        resources:
+          limits:
+            cpu: {{ .Values.postgresql.resources.limits.cpu }}
+            memory: {{ .Values.postgresql.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.postgresql.resources.requests.cpu }}
+            memory: {{ .Values.postgresql.resources.requests.memory }}
+        livenessProbe:
+          exec:
+            command: ["pg_isready", "-U", "postgres"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "postgres"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: init-scripts
+        configMap:
+          name: postgresql-init-scripts
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: {{ .Values.postgresql.namespace }}
+  labels:
+    app: postgresql
+    component: db
+spec:
+  type: {{ .Values.postgresql.service.type }}
+  ports:
+  - port: {{ .Values.postgresql.service.port }}
+    targetPort: postgresql
+    protocol: TCP
+    name: postgresql
+  selector:
+    app: postgresql
+    component: db
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-init-scripts
+  namespace: {{ .Values.postgresql.namespace }}
+  labels:
+    app: postgresql
+    component: db
+data:
+  01-init.sh: |
+    #!/bin/bash
+    set -e
+
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      DO \$\$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$APP_USER') THEN
+          CREATE USER $APP_USER WITH PASSWORD '$APP_PASSWORD';
+        END IF;
+      END
+      \$\$;
+
+      GRANT ALL PRIVILEGES ON DATABASE $POSTGRES_DB TO $APP_USER;
+
+      CREATE TABLE IF NOT EXISTS sensor_readings (
+        id BIGSERIAL PRIMARY KEY,
+        sensor_id VARCHAR(50) NOT NULL,
+        timestamp TIMESTAMPTZ NOT NULL,
+        temperature DECIMAL(5,2),
+        humidity DECIMAL(5,2),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_sensor_readings_sensor_id ON sensor_readings(sensor_id);
+      CREATE INDEX IF NOT EXISTS idx_sensor_readings_timestamp ON sensor_readings(timestamp DESC);
+
+      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $APP_USER;
+      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $APP_USER;
+    EOSQL

@@ -77,48 +77,35 @@ fastapi:
       enabled: false
       secretName: "fastapi-tls"
 
-clickhouse:
+
+postgresql:
   namespace: data
   replicaCount: 1
   image:
-    repository: clickhouse/clickhouse-server
-    tag: "25.11"
+    repository: postgres
+    tag: "16-alpine"
     pullPolicy: IfNotPresent
-  resources:
-    limits:
-      cpu: "1000m"
-      memory: "4Gi"
-    requests:
-      cpu: "500m"
-      memory: "2Gi"
-  storage:
-    size: 10Gi
-
-kafkaConnect:
-  namespace: messaging
-  replicaCount: 1
-  image:
-    repository: localhost/clickhouse-connect
-    tag: "latest"
-    pullPolicy: IfNotPresent
+  database: sensordata
+  env:
+    # Secrets sollten in Secrets Manager gespeichert werden nicht im Code
+    POSTGRES_USER: "postgres"
+    POSTGRES_PASSWORD: "postgres-admin-pw"
+    POSTGRES_DB: "sensordata"
+    PGDATA: "/var/lib/postgresql/data/pgdata"
+    APP_USER: "appuser"
+    APP_PASSWORD: "appuser-secure-pw"
   resources:
     limits:
       cpu: "500m"
-      memory: "1Gi"
+      memory: "512Mi"
     requests:
       cpu: "250m"
-      memory: "512Mi"
-  env:
-    CONNECT_BOOTSTRAP_SERVERS:
-    CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
-    CONNECT_GROUP_ID: "kafka-connect-group"
-    CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
-    CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
-    CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
-    CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
-    CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
-    CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
-    CONNECT_PLUGIN_PATH: "/usr/share/java,/etc/kafka-connect/jars"
+      memory: "256Mi"
+  storage:
+    size: 5Gi
+  service:
+    type: ClusterIP
+    port: 5432
 
 imagePullSecrets: []
 nameOverride: ""
