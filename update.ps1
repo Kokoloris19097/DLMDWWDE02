@@ -2,11 +2,13 @@
 $releaseName = "system-cluster"
 $chartPath = "helm-charts\$releaseName"
 $global:update_starttime = Get-Date
+$scriptRoot = $PSScriptRoot  # Einmal am Anfang speichern
 
 Write-Host "Helm Chart Update" -ForegroundColor Green
 
 try {
-    Push-Location $PSScriptRoot
+    Set-Location $scriptRoot  # Starte immer vom Script-Verzeichnis
+
     # 1. Kontext prüfen
     Write-Host "[1/4] Prüfe Kubernetes Kontext..." -ForegroundColor Yellow
     $currentContext = kubectl config current-context
@@ -23,7 +25,8 @@ try {
 
     # 2. Chart validieren
     Write-Host "[2/4] Validiere Helm Chart..." -ForegroundColor Yellow
-    Push-Location $chartPath
+    $absoluteChartPath = Join-Path $scriptRoot $chartPath
+    Set-Location $absoluteChartPath
 
     # Dependencies aktualisieren
     Write-Host "Lade Chart Dependencies..." -ForegroundColor Cyan
@@ -42,9 +45,9 @@ try {
 
     # 2.5 FastAPI Deployment
     Write-Host "[2.5/4] Deploye FastAPI..." -ForegroundColor Yellow
-    Pop-Location  # Zurück zum Root
+    Set-Location $scriptRoot  # Zurück zum Root
 
-    $deployScript = Join-Path $PSScriptRoot "fastapi\deploy-fastapi.ps1"
+    $deployScript = Join-Path $scriptRoot "fastapi\deploy-fastapi.ps1"
     if (Test-Path $deployScript) {
         & $deployScript
         if ($LASTEXITCODE -ne 0) {
@@ -53,7 +56,9 @@ try {
     } else {
         Write-Warning "$deployScript nicht gefunden."
     }
-    Push-Location $chartPath  # Zurück zum Chart
+
+    # Zurück zum Chart-Verzeichnis
+    Set-Location $absoluteChartPath
 
     # 3. Release prüfen
     Write-Host "[3/4] Prüfe Release Status..." -ForegroundColor Yellow
@@ -79,7 +84,8 @@ try {
         Write-Host "  helm rollback $releaseName 0 --namespace default" -ForegroundColor Cyan
         exit 1
     }
-    # Prüfe auf nicht-running fastapi-Pods und gebe deren Logs aus
+
+    # Prüfe auf nicht-running Pods und gebe deren Logs aus
     try {
         $pods = kubectl get pods --all-namespaces -o json | ConvertFrom-Json
         $badPods = $pods.items | Where-Object {$_.status.phase -ne 'Running' -or
@@ -88,7 +94,7 @@ try {
         foreach ($pod in $badPods) {
             $podName = $pod.metadata.name
             $podNs = $pod.metadata.namespace
-            Write-Log "ERROR" "Pod $podName (Namespace: $podNs) ist nicht Running (Status: $($pod.status.phase)). Logs:"
+            Write-Host "ERROR: Pod $podName (Namespace: $podNs) ist nicht Running (Status: $($pod.status.phase)). Logs:" -ForegroundColor Red
             kubectl logs $podName -n $podNs | ForEach-Object { Write-Host $_ }
         }
         if ($badPods.Count -gt 0) {
@@ -97,15 +103,15 @@ try {
             Write-Host "=== Upgrade erfolgreich ===" -ForegroundColor Green
         }
     } catch {
-        Write-Host "ERROR" "Fehler beim Auslesen der Pod-Logs: $_" -ForegroundColor Red
+        Write-Host "ERROR: Fehler beim Auslesen der Pod-Logs: $_" -ForegroundColor Red
     }
 
     # 5. Status anzeigen
     Write-Host "`n=== Pod Status ===" -ForegroundColor Yellow
-    kubectl get pods -n default -A
+    kubectl get pods -A
 
     Write-Host "`n=== Service Status ===" -ForegroundColor Yellow
-    kubectl get svc -n default -A
+    kubectl get svc -A
 
     Write-Host "`nUpdate abgeschlossen!" -ForegroundColor Green
 }
@@ -114,8 +120,7 @@ catch {
     exit 1
 }
 finally {
-    Set-Location $PSScriptRoot
+    Set-Location $scriptRoot  # Immer zurück zum Ausgangspunkt
     $delay = (Get-Date) - $update_starttime
     Write-Host ("Dauer des Updates: {0}h {1}m {2}s" -f ([int]$delay.TotalHours), ([int]$delay.Minutes), ([int]$delay.Seconds)) -ForegroundColor Cyan
-
 }
