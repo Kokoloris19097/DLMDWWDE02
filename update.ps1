@@ -6,6 +6,7 @@ $global:update_starttime = Get-Date
 Write-Host "Helm Chart Update" -ForegroundColor Green
 
 try {
+    Push-Location $PSScriptRoot
     # 1. Kontext prüfen
     Write-Host "[1/4] Prüfe Kubernetes Kontext..." -ForegroundColor Yellow
     $currentContext = kubectl config current-context
@@ -43,16 +44,15 @@ try {
     Write-Host "[2.5/4] Deploye FastAPI..." -ForegroundColor Yellow
     Pop-Location  # Zurück zum Root
 
-    $deployScript = Join-Path (Split-Path $chartPath -Parent) "fastapi\deploy-fastapi.ps1"
+    $deployScript = Join-Path $PSScriptRoot "fastapi\deploy-fastapi.ps1"
     if (Test-Path $deployScript) {
         & $deployScript
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "FastAPI Deployment fehlgeschlagen. Fahre ohne FastAPI-Update fort."
         }
     } else {
-        Write-Warning "fastapi\deploy-fastapi.ps1 nicht gefunden."
+        Write-Warning "$deployScript nicht gefunden."
     }
-
     Push-Location $chartPath  # Zurück zum Chart
 
     # 3. Release prüfen
@@ -114,7 +114,7 @@ catch {
     exit 1
 }
 finally {
-    Pop-Location
+    Set-Location $PSScriptRoot
     $delay = (Get-Date) - $update_starttime
     Write-Host ("Dauer des Updates: {0}h {1}m {2}s" -f ([int]$delay.TotalHours), ([int]$delay.Minutes), ([int]$delay.Seconds)) -ForegroundColor Cyan
 

@@ -29,13 +29,13 @@ function Write-Log {
         $color = "White"
     }
     $delay = $((Get-Date) - $starttime).TotalSeconds.ToString("F2")
-    Write-Host "[deploy spark $delay s] $Message" -ForegroundColor $color
+    Write-Host "[deploy fastapi $delay s] $Message" -ForegroundColor $color
 }
 Write-Log "INFO" "`n=== FastAPI Build & Deploy ==="
 try {
     Push-Location $PSScriptRoot
     # 1. Prüfe ob Podman läuft
-    Write-Log "INFO" "[deploy fastapi] [1/6] Pruefe Podman..."
+    Write-Log "INFO" "[1/6] Pruefe Podman..."
     if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
         Write-Log "DEBUG" "Podman nicht gefunden, versuche Installation..."
         if (Get-Command winget -ErrorAction SilentlyContinue) {
@@ -54,7 +54,7 @@ try {
     }
 
     # 2. Prüfe ob Dateien existieren
-    Write-Log "INFO" "[deploy fastapi] [2/6] Pruefe Dateien..."
+    Write-Log "INFO" "[2/6] Pruefe Dateien..."
     $requiredFiles = @("Dockerfile.fastapi", "main.py", "requirements.txt")
     foreach ($file in $requiredFiles) {
         if (-Not (Test-Path $file)) {
@@ -64,7 +64,7 @@ try {
     }
     Write-Log "SUCCESS" "Alle Dateien vorhanden"
     # 3. Podman Image bauen
-    Write-Log "INFO" "[deploy fastapi] [3/6] Baue Podman Image..."
+    Write-Log "INFO" "[3/6] Baue Podman Image..."
     podman build -f Dockerfile.fastapi -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${LOCAL_IMAGE} .
     if ($LASTEXITCODE -ne 0) {
         Write-Log "ERROR" "Podman Build fehlgeschlagen!"
@@ -73,7 +73,7 @@ try {
     Write-Log "SUCCESS" "Image erfolgreich gebaut: ${LOCAL_IMAGE}"
 
     # 4. Image in Kind Cluster laden
-    Write-Log "INFO" "[deploy fastapi] [4/6] Lade Image in Kind Cluster..."
+    Write-Log "INFO" "[4/6] Lade Image in Kind Cluster..."
     # Exportiere als Tar für Kind's Podman Provider
     podman save ${LOCAL_IMAGE} -o fastapi-image.tar
     if ($LASTEXITCODE -ne 0) {
@@ -94,21 +94,21 @@ try {
     Write-Log "SUCCESS" "Image in Cluster geladen: ${LOCAL_IMAGE}"
 
     if ($noHelm) {
-        Write-Log "INFO" "[deploy fastapi] [5/6] Überspringe Helm..."
-        Write-Log "INFO" "[deploy fastapi] [6/6] Überspringe status Prüfung..."
+        Write-Log "INFO" "[5/6] Überspringe Helm..."
+        Write-Log "INFO" "[6/6] Überspringe status Prüfung..."
     }else {
         # 5. Helm Upgrade/Install
-        Write-Log "INFO" "[deploy fastapi] [5/6] Deploye mit Helm..."
+        Write-Log "INFO" "[5/6] Deploye mit Helm..."
         Push-Location ..\helm-charts\system-cluster
 
 
         # Prüfe ob Release existiert
         $releaseExists = helm list -q --namespace default | Select-String "^${HELM_RELEASE}$"
         if ($releaseExists) {
-            Write-Log "INFO" "[deploy fastapi]   Upgrade existierendes Release..."
+            Write-Log "INFO" "Upgrade existierendes Release..."
             helm upgrade ${HELM_RELEASE} . --namespace default --wait --timeout=180s
         } else {
-            Write-Log "INFO" "[deploy fastapi]   Installiere neues Release..."
+            Write-Log "INFO" "Installiere neues Release..."
             helm install ${HELM_RELEASE} . --namespace default --create-namespace --wait --timeout=180s
         }
 
@@ -118,9 +118,9 @@ try {
         }
         Write-Log "SUCCESS" "Helm Deployment erfolgreich"
 
-        Write-Log "INFO" "[deploy fastapi]   Pod-Neustart mit neuem Image..."
+        Write-Log "INFO" "Pod-Neustart mit neuem Image..."
         kubectl delete pod -n api -l app=fastapi --ignore-not-found=true 2>$null
-        Write-Log "SUCCESS" "[deploy fastapi]   Pod wird mit neuem Image neu erstellt"
+        Write-Log "SUCCESS" "Pod wird mit neuem Image neu erstellt"
 
         # 6. Status prüfen
         Write-Log "INFO" "[6/6] Pruefe Deployment-Status..."
@@ -135,11 +135,11 @@ try {
     # Health Check: curl http://localhost:8000/health
     # Test Ingest: curl -X POST http://localhost:8000/ingest -H 'Content-Type: application/json' -d '{...}'
 }catch {
-    Write-Log "ERROR" "[deploy fastapi] FEHLER: $_"
+    Write-Log "ERROR" "FEHLER: $_"
     # Bereinige Tar-Datei
     if (Test-Path fastapi-image.tar) {
         Remove-Item fastapi-image.tar -ErrorAction SilentlyContinue
-        Write-Log "SUCCESS" "[deploy fastapi] Lokales Image fastapi-image.tar entfernt"
+        Write-Log "SUCCESS" "Lokales Image fastapi-image.tar entfernt"
     }
     # Prüfe auf nicht-running fastapi-Pods und gebe deren Logs aus
     try {
