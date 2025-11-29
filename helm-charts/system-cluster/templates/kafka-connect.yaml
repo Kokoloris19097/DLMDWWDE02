@@ -1,62 +1,49 @@
 ---
+# Kafka Connector für Clickhouse
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kafka-connect
+  name: clickhouse-connector
   namespace: {{ .Values.kafkaConnect.namespace }}
   labels:
-    app: kafka-connect
+    app: clickhouse-connector
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kafka-connect
+      app: clickhouse-connector
   template:
     metadata:
       labels:
-        app: kafka-connect
+        app: clickhouse-connector
     spec:
       containers:
-      - name: kafka-connect
-        image: confluentinc/cp-kafka-connect:7.5.0
+      - name: clickhouse-connector
+        image: "{{ .Values.kafkaConnect.image.repository }}:{{ .Values.kafkaConnect.image.tag }}"
+        imagePullPolicy: Never
         ports:
         - containerPort: 8083
         env:
-        - name: CONNECT_BOOTSTRAP_SERVERS
-          value: {{ .Values.kafkaConnect.env.bootstrapServers | quote }}
-        - name: CONNECT_REST_ADVERTISED_HOST_NAME
-          value: "kafka-connect"
-        - name: CONNECT_GROUP_ID
-          value: "kafka-connect-group"
-        - name: CONNECT_CONFIG_STORAGE_TOPIC
-          value: "connect-configs"
-        - name: CONNECT_OFFSET_STORAGE_TOPIC
-          value: "connect-offsets"
-        - name: CONNECT_STATUS_STORAGE_TOPIC
-          value: "connect-status"
-        - name: CONNECT_KEY_CONVERTER
-          value: "org.apache.kafka.connect.storage.StringConverter"
-        - name: CONNECT_VALUE_CONVERTER
-          value: "org.apache.kafka.connect.json.JsonConverter"
-        - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
-          value: "false"
-        - name: CONNECT_PLUGIN_PATH
-          value: "/usr/share/java,/etc/kafka-connect/jars"
-        volumeMounts:
-        - name: clickhouse-sink-plugins
-          mountPath: /etc/kafka-connect/jars
-      volumes:
-      - name: clickhouse-sink-plugins
-        emptyDir: {}
+        {{- range $key, $value := .Values.kafkaConnect.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        resources:
+          limits:
+            cpu: {{ .Values.kafkaConnect.resources.limits.cpu | quote }}
+            memory: {{ .Values.kafkaConnect.resources.limits.memory | quote }}
+          requests:
+            cpu: {{ .Values.kafkaConnect.resources.requests.cpu | quote }}
+            memory: {{ .Values.kafkaConnect.resources.requests.memory | quote }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: kafka-connect
+  name: clickhouse-connector
   namespace: {{ .Values.kafkaConnect.namespace }}
 spec:
   ports:
   - port: 8083
     targetPort: 8083
   selector:
-    app: kafka-connect
+    app: clickhouse-connector
