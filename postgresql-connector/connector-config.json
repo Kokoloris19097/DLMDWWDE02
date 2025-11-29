@@ -3,7 +3,7 @@
   "config": {
     "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
     "tasks.max": "1",
-    "topics": "sensor-data",
+    "topics": "analytics-data",
     "connection.url": "jdbc:postgresql://postgresql.data.svc.cluster.local:5432/sensordata",
     "connection.user": "appuser",
     "connection.password": "appuser-secure-pw",
@@ -12,13 +12,15 @@
     "auto.evolve": "false",
     "table.name.format": "sensor_readings",
     "pk.mode": "none",
+    "delete.enabled": "false",
     "fields.whitelist": "sensor_id,timestamp,temperature,humidity",
     "transforms": "TimestampConverter",
     "transforms.TimestampConverter.type": "org.apache.kafka.connect.transforms.TimestampConverter$Value",
     "transforms.TimestampConverter.field": "timestamp",
+    "transforms.TimestampConverter.format": "yyyy-MM-dd'T'HH:mm:ss'Z'",
     "transforms.TimestampConverter.target.type": "Timestamp",
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "value.converter.schemas.enable": "false"
+    "value.converter.schemas.enable": "true"
   }
 }

@@ -5,6 +5,8 @@ $global:update_starttime = Get-Date
 $scriptRoot = $PSScriptRoot  # Einmal am Anfang speichern
 
 Write-Host "Helm Chart Update" -ForegroundColor Green
+$updateFastAPI = $(Read-Host -Prompt "Möchten Sie das FastAPI Image aktualisieren? (J/N)") -eq "J"
+$updatePostgresConnector = $(Read-Host -Prompt "Möchten Sie das Postgres Connector Image aktualisieren? (J/N)") -eq "J"
 
 try {
     Set-Location $scriptRoot  # Starte immer vom Script-Verzeichnis
@@ -43,18 +45,39 @@ try {
     }
     Write-Host "Chart valide" -ForegroundColor Green
 
-    # 2.5 FastAPI Deployment
-    Write-Host "[2.5/4] Deploye FastAPI..." -ForegroundColor Yellow
-    Set-Location $scriptRoot  # Zurück zum Root
-
-    $deployScript = Join-Path $scriptRoot "fastapi\deploy-fastapi.ps1"
-    if (Test-Path $deployScript) {
-        & $deployScript
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warning "FastAPI Deployment fehlgeschlagen. Fahre ohne FastAPI-Update fort."
-        }
+    # 2.1 FastAPI Deployment
+    if (-not $updateFastAPI) {
+        Write-Host "[2.1/4] Überspringe FastAPI Update." -ForegroundColor Yellow
     } else {
-        Write-Warning "$deployScript nicht gefunden."
+        Write-Host "[2.1/4] Deploye FastAPI..." -ForegroundColor Yellow
+        Set-Location $scriptRoot  # Zurück zum Root
+        $deployScript = Join-Path $scriptRoot "fastapi\deploy-fastapi.ps1"
+        if (Test-Path $deployScript) {
+            & $deployScript
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "FastAPI Deployment fehlgeschlagen. Fahre ohne FastAPI-Update fort."
+            }
+        } else {
+            Write-Warning "$deployScript nicht gefunden."
+        }
+    }
+
+    # 2.2 Postgres Connector Deployment
+    if (-not $updatePostgresConnector) {
+        Write-Host "[2.2/4] Überspringe Postgres Connector Update." -ForegroundColor Yellow
+    } else {
+        Write-Host "[2.2/4] Deploye Postgres Connector..." -ForegroundColor Yellow
+        Set-Location $scriptRoot  # Zurück zum Root
+
+        $deployScript = Join-Path $scriptRoot "postgresql-connector\deploy-postgres-connector.ps1"
+        if (Test-Path $deployScript) {
+            & $deployScript
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Postgres Connector Deployment fehlgeschlagen. Fahre ohne Postgres Connector-Update fort."
+            }
+        } else {
+            Write-Warning "$deployScript nicht gefunden."
+        }
     }
 
     # Zurück zum Chart-Verzeichnis
