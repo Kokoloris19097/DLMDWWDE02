@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-connect
+  namespace: {{ .Values.postgresqlConnect.namespace }}
+  labels:
+    app: kafka-connect
+spec:
+  replicas: {{ .Values.postgresqlConnect.replicaCount }}
+  selector:
+    matchLabels:
+      app: kafka-connect
+  template:
+    metadata:
+      labels:
+        app: kafka-connect
+    spec:
+      containers:
+      - name: kafka-connect
+        image: "{{ .Values.postgresqlConnect.image.repository }}:{{ .Values.postgresqlConnect.image.tag }}"
+        imagePullPolicy: {{ .Values.postgresqlConnect.image.pullPolicy }}
+        ports:
+        - containerPort: 8083
+          name: rest-api
+        env:
+        {{- range $key, $value := .Values.postgresqlConnect.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        resources:
+          limits:
+            cpu: {{ .Values.postgresqlConnect.resources.limits.cpu }}
+            memory: {{ .Values.postgresqlConnect.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.postgresqlConnect.resources.requests.cpu }}
+            memory: {{ .Values.postgresqlConnect.resources.requests.memory }}
+        readinessProbe:
+          httpGet:
+            path: /connectors
+            port: 8083
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /connectors
+            port: 8083
+          initialDelaySeconds: 60
+          periodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-connect
+  namespace: {{ .Values.postgresqlConnect.namespace }}
+  labels:
+    app: kafka-connect
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8083
+    targetPort: 8083
+    name: rest-api
+  selector:
+    app: kafka-connect

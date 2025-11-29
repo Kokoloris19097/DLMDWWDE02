@@ -1,0 +1,25 @@
+# Kafka Connect mit JDBC Sink Connector für PostgreSQL
+FROM confluentinc/cp-kafka-connect:7.5.0
+
+# JDBC Connector installieren
+RUN confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:10.7.4
+
+# PostgreSQL JDBC Driver herunterladen und in den richtigen Ordner kopieren
+RUN curl -L -o /tmp/postgresql-42.6.0.jar \
+    https://jdbc.postgresql.org/download/postgresql-42.6.0.jar && \
+    cp /tmp/postgresql-42.6.0.jar /usr/share/confluent-hub-components/confluentinc-kafka-connect-jdbc/lib/ && \
+    rm /tmp/postgresql-42.6.0.jar
+
+# Verzeichnis erstellen und Konfiguration kopieren
+RUN mkdir -p /etc/kafka-connect
+COPY connector-config.json /etc/kafka-connect/connector-config.json
+
+# Start-Script kopieren und ausführbar machen (als root, dann User wechseln)
+USER root
+COPY start.sh /opt/start.sh
+RUN chmod +x /opt/start.sh
+USER appuser
+
+EXPOSE 8083
+
+ENTRYPOINT ["/opt/start.sh"]

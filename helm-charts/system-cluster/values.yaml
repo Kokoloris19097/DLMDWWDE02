@@ -53,6 +53,7 @@ kafka:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
       KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: "50"
 
+
 fastapi:
   namespace: api
   replicaCount: 1
@@ -106,6 +107,35 @@ postgresql:
   service:
     type: ClusterIP
     port: 5432
+
+postgresqlConnect:
+  namespace: messaging
+  replicaCount: 1
+  image:
+    repository: postgres-kafka-connector
+    tag: "latest"
+    pullPolicy: Never
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+  env:
+    CONNECT_BOOTSTRAP_SERVERS: "kafka-broker-0.kafka-broker.messaging.svc.cluster.local:9092,kafka-broker-1.kafka-broker.messaging.svc.cluster.local:9092"
+    CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
+    CONNECT_GROUP_ID: "kafka-connect-group"
+    CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
+    CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
+    CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
+    CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+    CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+    CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+    CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
+    CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+    CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
 
 imagePullSecrets: []
 nameOverride: ""
