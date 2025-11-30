@@ -130,7 +130,11 @@ spec:
             KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://$$FQDN:9092
         volumeMounts:
         - name: kafka-data
-          mountPath: /tmp/kraft-combined-logs
+          mountPath: {{ .Values.kafka.broker.env.KAFKA_LOG_DIRS | default "/var/lib/kafka/data" }}
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sh", "-c", "sleep 15"]
 ---
 # Kafka Broker Service (Headless)
 apiVersion: v1

@@ -44,7 +44,7 @@ kafka:
     env:
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" # Random-ID
       KAFKA_PROCESS_ROLES: "broker"
-      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
       KAFKA_LISTENERS: "PLAINTEXT://:9092"
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
