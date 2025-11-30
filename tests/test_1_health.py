@@ -19,7 +19,7 @@ class TestKafkaHealth:
     """Kafka cluster health checks"""
 
     @pytest.mark.health
-    @pytest.mark.dependency(name="kafka_broker_0_running")
+    @pytest.mark.dependency(name="kafka_broker_0_running", scope="session")
     def test_kafka_broker_0_running(self, kafka_exec):
         """Verify kafka-broker-0 pod is running"""
         success, output = kafka_exec("echo OK")
@@ -27,50 +27,34 @@ class TestKafkaHealth:
         assert "OK" in output, f"Unexpected output: {output}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(name="kafka_broker_1_running")
-    def test_kafka_broker_1_running(self, config):
+    @pytest.mark.dependency(name="kafka_broker_1_running", scope="session")
+    def test_kafka_broker_1_running(self, get_pod_phase, config):
         """Verify kafka-broker-1 pod is running"""
-        cmd = [
-            "kubectl", "-n", config.MESSAGING_NAMESPACE,
-            "exec", "kafka-broker-1", "--",
-            "echo", "OK"
-        ]
-        import subprocess
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        assert result.returncode == 0, f"kafka-broker-1 is not reachable: {result.stderr}"
+        success, phase = get_pod_phase("kafka-broker-1", config.MESSAGING_NAMESPACE)
+        assert success, f"Failed to get pod status: {phase}"
+        assert phase == "Running", f"kafka-broker-1 is not running: {phase}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(name="kafka_controller_0_running")
-    def test_kafka_controller_0_running(self, config):
+    @pytest.mark.dependency(name="kafka_controller_0_running", scope="session")
+    def test_kafka_controller_0_running(self, get_pod_phase, config):
         """Verify kafka-controller-0 pod is running"""
-        cmd = [
-            "kubectl", "-n", config.MESSAGING_NAMESPACE,
-            "get", "pod", "kafka-controller-0",
-            "-o", "jsonpath={.status.phase}"
-        ]
-        import subprocess
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        assert result.returncode == 0, f"Failed to get pod status: {result.stderr}"
-        assert result.stdout.strip() == "Running", f"kafka-controller-0 is not running: {result.stdout}"
+        success, phase = get_pod_phase("kafka-controller-0", config.MESSAGING_NAMESPACE)
+        assert success, f"Failed to get pod status: {phase}"
+        assert phase == "Running", f"kafka-controller-0 is not running: {phase}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(name="kafka_controller_1_running")
-    def test_kafka_controller_1_running(self, config):
+    @pytest.mark.dependency(name="kafka_controller_1_running", scope="session")
+    def test_kafka_controller_1_running(self, get_pod_phase, config):
         """Verify kafka-controller-1 pod is running"""
-        cmd = [
-            "kubectl", "-n", config.MESSAGING_NAMESPACE,
-            "get", "pod", "kafka-controller-1",
-            "-o", "jsonpath={.status.phase}"
-        ]
-        import subprocess
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        assert result.returncode == 0, f"Failed to get pod status: {result.stderr}"
-        assert result.stdout.strip() == "Running", f"kafka-controller-1 is not running: {result.stdout}"
+        success, phase = get_pod_phase("kafka-controller-1", config.MESSAGING_NAMESPACE)
+        assert success, f"Failed to get pod status: {phase}"
+        assert phase == "Running", f"kafka-controller-1 is not running: {phase}"
 
     @pytest.mark.health
     @pytest.mark.dependency(
         name="kafka_topics_accessible",
-        depends=["kafka_broker_0_running"]
+        depends=["kafka_broker_0_running"],
+        scope="session"
     )
     def test_kafka_topics_accessible(self, kafka_exec):
         """Verify Kafka topics can be listed"""
@@ -90,24 +74,22 @@ class TestKafkaConnectHealth:
     @pytest.mark.health
     @pytest.mark.dependency(
         name="kafka_connect_running",
-        depends=["kafka_broker_0_running", "kafka_broker_1_running"]
+        depends=["kafka_broker_0_running", "kafka_broker_1_running"],
+        scope="session"
     )
-    def test_kafka_connect_running(self, config):
+    def test_kafka_connect_running(self, get_deployment_ready_replicas, config):
         """Verify Kafka Connect deployment is running"""
-        cmd = [
-            "kubectl", "-n", config.MESSAGING_NAMESPACE,
-            "get", "deployment", "kafka-connect",
-            "-o", "jsonpath={.status.readyReplicas}"
-        ]
-        import subprocess
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        assert result.returncode == 0, f"Failed to get deployment status: {result.stderr}"
-        assert result.stdout.strip() == "1", f"Kafka Connect not ready: {result.stdout}"
+        success, replicas = get_deployment_ready_replicas(
+            "kafka-connect", config.MESSAGING_NAMESPACE
+        )
+        assert success, f"Failed to get deployment status: {replicas}"
+        assert replicas == "1", f"Kafka Connect not ready: {replicas}"
 
     @pytest.mark.health
     @pytest.mark.dependency(
         name="kafka_connect_api_available",
-        depends=["kafka_connect_running"]
+        depends=["kafka_connect_running"],
+        scope="session"
     )
     def test_kafka_connect_api_available(self, connect_exec):
         """Verify Kafka Connect REST API is responding"""
@@ -118,7 +100,8 @@ class TestKafkaConnectHealth:
     @pytest.mark.health
     @pytest.mark.dependency(
         name="postgresql_sink_connector_exists",
-        depends=["kafka_connect_api_available"]
+        depends=["kafka_connect_api_available"],
+        scope="session"
     )
     def test_postgresql_sink_connector_exists(self, connect_exec):
         """Verify postgresql-sink connector is registered"""
@@ -129,7 +112,8 @@ class TestKafkaConnectHealth:
     @pytest.mark.health
     @pytest.mark.dependency(
         name="postgresql_sink_connector_running",
-        depends=["postgresql_sink_connector_exists"]
+        depends=["postgresql_sink_connector_exists"],
+        scope="session"
     )
     def test_postgresql_sink_connector_running(self, connect_exec):
         """Verify postgresql-sink connector and task are running"""
@@ -138,19 +122,19 @@ class TestKafkaConnectHealth:
         )
         assert success, f"Failed to get connector status: {output}"
 
-        try:
-            status = json.loads(output)
-        except json.JSONDecodeError:
-            pytest.fail(f"Invalid JSON response: {output}")
+        status = json.loads(output)
 
         if "error_code" in status:
             pytest.fail(f"Connector not found: {status.get('message', output)}")
 
-        assert status["connector"]["state"] == "RUNNING", \
-            f"Connector not running: {status['connector']['state']}"
-        assert len(status["tasks"]) > 0, "No tasks found"
-        assert status["tasks"][0]["state"] == "RUNNING", \
-            f"Task not running: {status['tasks'][0]['state']}"
+        connector_state = status["connector"]["state"]
+        assert connector_state == "RUNNING", f"Connector not running: {connector_state}"
+
+        tasks = status["tasks"]
+        assert len(tasks) > 0, "No tasks found"
+
+        task_state = tasks[0]["state"]
+        assert task_state == "RUNNING", f"Task not running: {task_state}"
 
 
 # =============================================================================
@@ -161,23 +145,18 @@ class TestPostgreSQLHealth:
     """PostgreSQL health checks"""
 
     @pytest.mark.health
-    @pytest.mark.dependency(name="postgresql_running")
-    def test_postgresql_running(self, config):
+    @pytest.mark.dependency(name="postgresql_running", scope="session")
+    def test_postgresql_running(self, get_pod_phase, config):
         """Verify PostgreSQL pod is running"""
-        cmd = [
-            "kubectl", "-n", config.DATA_NAMESPACE,
-            "get", "pod", "postgresql-0",
-            "-o", "jsonpath={.status.phase}"
-        ]
-        import subprocess
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        assert result.returncode == 0, f"Failed to get pod status: {result.stderr}"
-        assert result.stdout.strip() == "Running", f"PostgreSQL is not running: {result.stdout}"
+        success, phase = get_pod_phase("postgresql-0", config.DATA_NAMESPACE)
+        assert success, f"Failed to get pod status: {phase}"
+        assert phase == "Running", f"PostgreSQL is not running: {phase}"
 
     @pytest.mark.health
     @pytest.mark.dependency(
         name="postgresql_accepting_connections",
-        depends=["postgresql_running"]
+        depends=["postgresql_running"],
+        scope="session"
     )
     def test_postgresql_accepting_connections(self, postgres_exec):
         """Verify PostgreSQL accepts connections"""
@@ -187,12 +166,14 @@ class TestPostgreSQLHealth:
     @pytest.mark.health
     @pytest.mark.dependency(
         name="sensor_readings_table_exists",
-        depends=["postgresql_accepting_connections"]
+        depends=["postgresql_accepting_connections"],
+        scope="session"
     )
     def test_sensor_readings_table_exists(self, postgres_exec):
         """Verify sensor_readings table exists"""
         success, output = postgres_exec(
-            "psql -U postgres -d sensordata -t -c \"SELECT COUNT(*) FROM information_schema.tables WHERE table_name='sensor_readings'\""
+            "psql -U postgres -d sensordata -t -c "
+            "\"SELECT COUNT(*) FROM information_schema.tables WHERE table_name='sensor_readings'\""
         )
         assert success, f"Failed to query tables: {output}"
         assert "1" in output, f"sensor_readings table not found: {output}"

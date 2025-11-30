@@ -11,48 +11,66 @@ import pytest
 
 
 # =============================================================================
+# HELPER: TCP Connectivity Check Commands
+# =============================================================================
+
+def tcp_check_cmd(host: str, port: int) -> str:
+    """Generate bash command for TCP connectivity check"""
+    return f"/bin/bash -c 'echo > /dev/tcp/{host}/{port} && echo OK || echo FAIL'"
+
+
+def tcp_check_with_nc_fallback(host: str, port: int) -> str:
+    """Generate bash command with netcat fallback"""
+    return (
+        f"/bin/bash -c 'if command -v nc >/dev/null 2>&1; then "
+        f"nc -z -w 3 {host} {port} && echo OK || echo FAIL; else "
+        f"(echo > /dev/tcp/{host}/{port}) >/dev/null 2>&1 && echo OK || echo FAIL; fi'"
+    )
+
+
+# =============================================================================
 # LAYER 2A: KAFKA INTERNAL CONNECTIVITY (Depends on Kafka Health)
 # =============================================================================
 
 class TestKafkaConnectivity:
     """Kafka network connectivity tests"""
 
+    CONTROLLER_HOST = "kafka-controller-{}.kafka-controller.messaging.svc.cluster.local"
+    BROKER_HOST = "kafka-broker-{}.kafka-broker.messaging.svc.cluster.local"
+
     @pytest.mark.connectivity
     @pytest.mark.dependency(
         name="broker_to_controller_0",
-        depends=["kafka_broker_0_running", "kafka_controller_0_running"]
+        depends=["kafka_broker_0_running", "kafka_controller_0_running"], scope="session"
     )
     def test_broker_to_controller_0(self, kafka_exec):
         """Verify broker can reach controller-0"""
-        success, output = kafka_exec(
-            "/bin/bash -c 'echo > /dev/tcp/kafka-controller-0.kafka-controller.messaging.svc.cluster.local/9093 && echo OK || echo FAIL'"
-        )
+        host = self.CONTROLLER_HOST.format(0)
+        success, output = kafka_exec(tcp_check_cmd(host, 9093))
         assert success, f"Command failed: {output}"
         assert "OK" in output, f"Cannot reach controller-0: {output}"
 
     @pytest.mark.connectivity
     @pytest.mark.dependency(
         name="broker_to_controller_1",
-        depends=["kafka_broker_0_running", "kafka_controller_1_running"]
+        depends=["kafka_broker_0_running", "kafka_controller_1_running"], scope="session"
     )
     def test_broker_to_controller_1(self, kafka_exec):
         """Verify broker can reach controller-1"""
-        success, output = kafka_exec(
-            "/bin/bash -c 'echo > /dev/tcp/kafka-controller-1.kafka-controller.messaging.svc.cluster.local/9093 && echo OK || echo FAIL'"
-        )
+        host = self.CONTROLLER_HOST.format(1)
+        success, output = kafka_exec(tcp_check_cmd(host, 9093))
         assert success, f"Command failed: {output}"
         assert "OK" in output, f"Cannot reach controller-1: {output}"
 
     @pytest.mark.connectivity
     @pytest.mark.dependency(
         name="broker_0_to_broker_1",
-        depends=["kafka_broker_0_running", "kafka_broker_1_running"]
+        depends=["kafka_broker_0_running", "kafka_broker_1_running"], scope="session"
     )
     def test_broker_0_to_broker_1(self, kafka_exec):
         """Verify broker-0 can reach broker-1"""
-        success, output = kafka_exec(
-            "/bin/bash -c 'echo > /dev/tcp/kafka-broker-1.kafka-broker.messaging.svc.cluster.local/9092 && echo OK || echo FAIL'"
-        )
+        host = self.BROKER_HOST.format(1)
+        success, output = kafka_exec(tcp_check_cmd(host, 9092))
         assert success, f"Command failed: {output}"
         assert "OK" in output, f"Cannot reach broker-1: {output}"
 
@@ -64,37 +82,32 @@ class TestKafkaConnectivity:
 class TestKafkaConnectConnectivity:
     """Kafka Connect network connectivity tests"""
 
+    KAFKA_BROKER_HOST = "kafka.messaging.svc.cluster.local"
+    POSTGRESQL_HOST = "postgresql.data.svc.cluster.local"
+
     @pytest.mark.connectivity
     @pytest.mark.dependency(
         name="connect_to_kafka_broker",
-        depends=["kafka_connect_running", "kafka_broker_0_running"]
+        depends=["kafka_connect_running", "kafka_broker_0_running"], scope="session"
     )
     def test_connect_to_kafka_broker(self, connect_exec):
         """Verify Kafka Connect can reach Kafka broker"""
-        host = "kafka.messaging.svc.cluster.local"
-        port = 9092
-
-        cmd = f'/bin/bash -c "echo > /dev/tcp/{host}/{port} && echo OK || echo FAIL"'
-
-        success, output = connect_exec(cmd)
+        success, output = connect_exec(
+            tcp_check_cmd(self.KAFKA_BROKER_HOST, 9092)
+        )
         assert success, f"Command failed: {output}"
         assert "OK" in output, f"Cannot reach Kafka broker: {output}"
 
     @pytest.mark.connectivity
     @pytest.mark.dependency(
         name="connect_to_postgresql",
-        depends=["kafka_connect_running", "postgresql_running"]
+        depends=["kafka_connect_running", "postgresql_running"], scope="session"
     )
     def test_connect_to_postgresql(self, connect_exec):
         """Verify Kafka Connect can reach PostgreSQL"""
-        host = "postgresql.data.svc.cluster.local"
-        port = 5432
-        cmd = (
-            "/bin/bash -c 'if command -v nc >/dev/null 2>&1; then nc -z -w 3 "
-            + f"{host} {port} && echo OK || echo FAIL; else (echo > /dev/tcp/{host}/{port}) >/dev/null 2>&1 && echo OK || echo FAIL; fi'"
+        success, output = connect_exec(
+            tcp_check_with_nc_fallback(self.POSTGRESQL_HOST, 5432)
         )
-
-        success, output = connect_exec(cmd)
         assert success, f"Command failed: {output}"
         assert "OK" in output, f"Cannot reach PostgreSQL: {output}"
 
@@ -106,44 +119,37 @@ class TestKafkaConnectConnectivity:
 class TestEndpointsAvailable:
     """Verify Kubernetes endpoints are properly configured"""
 
+    def _assert_endpoints_exist(self, success: bool, output: str, service: str):
+        """Common assertion for endpoint checks"""
+        assert success, f"Failed to get endpoints: {output}"
+        assert output != "", f"No endpoints for {service}: {output}"
+
     @pytest.mark.connectivity
     @pytest.mark.dependency(
         name="kafka_broker_endpoints",
-        depends=["kafka_broker_0_running", "kafka_broker_1_running"]
+        depends=["kafka_broker_0_running", "kafka_broker_1_running"], scope="session"
     )
-    def test_kafka_broker_endpoints(self, kubectl, config):
+    def test_kafka_broker_endpoints(self, get_endpoints, config):
         """Verify kafka-broker service has endpoints"""
-        success, output = kubectl(
-            "get endpoints kafka-broker -o jsonpath={.subsets[0].addresses[*].ip}",
-            namespace=config.MESSAGING_NAMESPACE
-        )
-        assert success, f"Failed to get endpoints: {output}"
-        assert output != "", f"No endpoints for kafka-broker: {output}"
+        success, output = get_endpoints("kafka-broker", config.MESSAGING_NAMESPACE)
+        self._assert_endpoints_exist(success, output, "kafka-broker")
 
     @pytest.mark.connectivity
     @pytest.mark.dependency(
         name="kafka_controller_endpoints",
-        depends=["kafka_controller_0_running", "kafka_controller_1_running"]
+        depends=["kafka_controller_0_running", "kafka_controller_1_running"], scope="session"
     )
-    def test_kafka_controller_endpoints(self, kubectl, config):
+    def test_kafka_controller_endpoints(self, get_endpoints, config):
         """Verify kafka-controller service has endpoints"""
-        success, output = kubectl(
-            "get endpoints kafka-controller -o jsonpath={.subsets[0].addresses[*].ip}",
-            namespace=config.MESSAGING_NAMESPACE
-        )
-        assert success, f"Failed to get endpoints: {output}"
-        assert output != "", f"No endpoints for kafka-controller: {output}"
+        success, output = get_endpoints("kafka-controller", config.MESSAGING_NAMESPACE)
+        self._assert_endpoints_exist(success, output, "kafka-controller")
 
     @pytest.mark.connectivity
     @pytest.mark.dependency(
         name="postgresql_endpoints",
-        depends=["postgresql_running"]
+        depends=["postgresql_running"], scope="session"
     )
-    def test_postgresql_endpoints(self, kubectl, config):
+    def test_postgresql_endpoints(self, get_endpoints, config):
         """Verify postgresql service has endpoints"""
-        success, output = kubectl(
-            "get endpoints postgresql -o jsonpath={.subsets[0].addresses[*].ip}",
-            namespace=config.DATA_NAMESPACE
-        )
-        assert success, f"Failed to get endpoints: {output}"
-        assert output != "", f"No endpoints for postgresql: {output}"
+        success, output = get_endpoints("postgresql", config.DATA_NAMESPACE)
+        self._assert_endpoints_exist(success, output, "postgresql")
