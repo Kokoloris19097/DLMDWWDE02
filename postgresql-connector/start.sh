@@ -49,14 +49,14 @@ sleep 5
 echo "Registering PostgreSQL Sink Connector..."
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8083/connectors \
     -H "Content-Type: application/json" \
-    -d @/etc/kafka-connect/connector-config.json)
+-d @/etc/kafka-connect/connector-config.json)
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 
 if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
     echo "Connector registered successfully!"
-elif [ "$HTTP_CODE" = "409" ]; then
+    elif [ "$HTTP_CODE" = "409" ]; then
     echo "Connector already exists."
 else
     echo "Response: HTTP $HTTP_CODE"
