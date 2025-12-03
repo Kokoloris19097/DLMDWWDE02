@@ -45,6 +45,7 @@ try {
     # 3. Image in Kind laden
     Write-Log "INFO" "[3/4] Lade Image in Kind Cluster..."
     podman save ${IMAGE_NAME}:${IMAGE_TAG} -o $TAR_NAME
+    $env:KIND_EXPERIMENTAL_PROVIDER = "podman"
     kind load image-archive $TAR_NAME --name $CLUSTER_NAME
     Remove-Item $TAR_NAME -ErrorAction SilentlyContinue
     Write-Log "SUCCESS" "Image in Cluster geladen"

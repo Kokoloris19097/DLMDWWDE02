@@ -2,7 +2,8 @@
 $releaseName = "system-cluster"
 $chartPath = "helm-charts\$releaseName"
 $global:update_starttime = Get-Date
-$scriptRoot = $PSScriptRoot  # Einmal am Anfang speichern
+$scriptRoot = $PSScriptRoot
+$env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 
 Write-Host "Helm Chart Update" -ForegroundColor Green
 $updateFastAPI = $(Read-Host -Prompt "Möchten Sie das FastAPI Image aktualisieren? (J/N)") -eq "J"

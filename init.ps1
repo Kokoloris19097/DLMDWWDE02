@@ -1,6 +1,7 @@
 ﻿# Installation Script
 $clusterName = "system-cluster"
 $chartPath = "helm-charts/$clusterName"
+$env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 
 $global:init_starttime = Get-Date
 function Write-Log {
