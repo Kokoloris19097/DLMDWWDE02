@@ -264,3 +264,26 @@ ingress-nginx:
       requests:
         cpu: 20m
         memory: 32Mi
+
+# Prometheus Monitoring Configuration
+prometheus:
+  namespace: monitoring
+  image:
+    repository: prom/prometheus
+    tag: "v3.7.1"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+  storage:
+    size: "10Gi"
+  retention: "15d"
+  scrapeInterval: "15s"
+  evaluationInterval: "15s"
+  service:
+    type: ClusterIP
+    port: 9090

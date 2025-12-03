@@ -20,18 +20,46 @@ spec:
       labels:
         app: kafka
         component: controller
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "7071"
+        prometheus.io/path: "/metrics"
     spec:
+      initContainers:
+      - name: download-jmx-exporter
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          wget -O /jmx-exporter/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar
+        volumeMounts:
+        - name: jmx-exporter
+          mountPath: /jmx-exporter
       containers:
       - name: kafka
         image: "{{ .Values.kafka.image.repository }}:{{ .Values.kafka.image.tag }}"
         imagePullPolicy: {{ .Values.kafka.image.pullPolicy }}
         ports:
         - containerPort: 9093
+          name: kafka
+          protocol: TCP
+        - containerPort: 7071
+          name: jmx-metrics
+          protocol: TCP
         env:
+        - name: KAFKA_OPTS
+          value: "-javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=7071:/opt/jmx-exporter/config.yaml"
         {{- range $key, $value := .Values.kafka.controller.env }}
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
+        volumeMounts:
+        - name: jmx-exporter
+          mountPath: /opt/jmx-exporter
+        - name: jmx-config
+          mountPath: /opt/jmx-exporter/config.yaml
+          subPath: jmx-exporter-config.yaml
         command:
         - sh
         - -c
@@ -44,6 +72,12 @@ spec:
 
           # Übergebe Werte als Argumente an run-Script
           exec /etc/kafka/docker/run KAFKA_NODE_ID=$$NODE_ID
+      volumes:
+      - name: jmx-exporter
+        emptyDir: {}
+      - name: jmx-config
+        configMap:
+          name: jmx-exporter-config
 
 ---
 # Kafka Controller Service (Headless)
@@ -93,13 +127,35 @@ spec:
       labels:
         app: kafka
         component: broker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "7071"
+        prometheus.io/path: "/metrics"
     spec:
+      initContainers:
+      - name: download-jmx-exporter
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          wget -O /jmx-exporter/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar
+        volumeMounts:
+        - name: jmx-exporter
+          mountPath: /jmx-exporter
       containers:
       - name: kafka
         image: "{{ .Values.kafka.image.repository }}:{{ .Values.kafka.image.tag }}"
         ports:
         - containerPort: 9092
+          name: kafka
+          protocol: TCP
+        - containerPort: 7071
+          name: jmx-metrics
+          protocol: TCP
         env:
+        - name: KAFKA_OPTS
+          value: "-javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=7071:/opt/jmx-exporter/config.yaml"
         {{- range $key, $value := .Values.kafka.broker.env }}
         - name: {{ $key }}
           value: {{ $value | quote }}
@@ -131,10 +187,21 @@ spec:
         volumeMounts:
         - name: kafka-data
           mountPath: {{ .Values.kafka.broker.env.KAFKA_LOG_DIRS | default "/var/lib/kafka/data" }}
+        - name: jmx-exporter
+          mountPath: /opt/jmx-exporter
+        - name: jmx-config
+          mountPath: /opt/jmx-exporter/config.yaml
+          subPath: jmx-exporter-config.yaml
         lifecycle:
           preStop:
             exec:
               command: ["sh", "-c", "sleep 15"]
+      volumes:
+      - name: jmx-exporter
+        emptyDir: {}
+      - name: jmx-config
+        configMap:
+          name: jmx-exporter-config
 ---
 # Kafka Broker Service (Headless)
 apiVersion: v1

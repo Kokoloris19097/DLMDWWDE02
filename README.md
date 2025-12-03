@@ -68,16 +68,40 @@ Desweitern wird ein Monitoring durch Prometheus und Grafana eingeplant. Promethe
 ![K8s-Ressourcen](doku/K8s-Ressourcen.jpg)
 
 ## Inbetriebnahme
-- Erstellen einer venv mit `python -m venv venv`
-- `Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser`
-- öffnen der venv `.\.venv\Scripts\Activate.ps1`
-- Requirements installieren
+
+### Voraussetzungen installieren
 ```powershell
 winget install Helm.Helm
 winget install Kubernetes.kind
-kind create cluster --config kind-config.yaml
-kubectl cluster-info --context kind-data-engineering
-kubectl get nodes
-helm dependency update
-helm install data-platform . -f values-custom.yaml
+winget install Docker.DockerCLI
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
 ```
+
+### System deployen
+```powershell
+# Kind Cluster erstellen
+kind create cluster --config kind-config.yaml --name system-cluster
+
+# Cluster-Verbindung prüfen
+kubectl cluster-info --context kind-system-cluster
+
+# System mit Helm deployen
+cd helm-charts\system-cluster
+helm install system-cluster . --namespace default --create-namespace --wait
+```
+
+### Monitoring deployen
+```powershell
+# Prometheus mit allen Exportern deployen
+cd monitoring
+.\deploy-monitoring.ps1
+
+# Prometheus UI öffnen
+kubectl port-forward -n monitoring svc/prometheus 9090:9090
+# Browser: http://localhost:9090
+```
+
+Siehe auch:
+- **Monitoring Setup**: `monitoring/README.md`
+- **Quick Start**: `monitoring/QUICKSTART.md`
+- **PromQL Queries**: `monitoring/prometheus-queries.md`

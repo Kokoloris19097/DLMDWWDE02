@@ -14,6 +14,9 @@ import uvicorn
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from contextlib import contextmanager
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_fastapi_instrumentator import Instrumentator
+from fastapi.responses import Response
 
 # Logging konfigurieren
 logging.basicConfig(
@@ -43,6 +46,49 @@ app = FastAPI(
     title="Data Ingestion & Query API",
     description="Empfängt Sensor-Daten und bietet Datenabfrage-Endpunkte",
     version="2.0.0"
+)
+
+# =============================================================================
+# PROMETHEUS METRICS
+# =============================================================================
+
+# Instrumentiere FastAPI automatisch mit Standard-Metriken
+Instrumentator().instrument(app).expose(app)
+
+# Custom Metriken
+ingestion_counter = Counter(
+    'sensor_data_ingestion_total',
+    'Total number of sensor data records ingested',
+    ['sensor_id', 'status']
+)
+
+ingestion_latency = Histogram(
+    'sensor_data_ingestion_duration_seconds',
+    'Time spent processing ingestion requests',
+    ['sensor_id']
+)
+
+kafka_publish_counter = Counter(
+    'kafka_messages_published_total',
+    'Total number of messages published to Kafka',
+    ['topic', 'status']
+)
+
+db_query_counter = Counter(
+    'database_queries_total',
+    'Total number of database queries executed',
+    ['query_type', 'status']
+)
+
+db_query_duration = Histogram(
+    'database_query_duration_seconds',
+    'Time spent executing database queries',
+    ['query_type']
+)
+
+active_kafka_connections = Gauge(
+    'kafka_producer_active_connections',
+    'Number of active Kafka producer connections'
 )
 
 # =============================================================================
@@ -240,68 +286,80 @@ async def ingest_sensor_data(data: SensorData):
     """
     Hauptendpoint: Empfängt Sensor-Daten und schreibt in Kafka
     """
-    try:
-        producer = get_kafka_producer()
+    # Metriken: Starte Timer
+    with ingestion_latency.labels(sensor_id=data.sensor_id).time():
+        try:
+            producer = get_kafka_producer()
 
-        # Payload vorbereiten
-        message_value = {
-            "sensor_id": data.sensor_id,
-            "timestamp": data.timestamp.isoformat(),
-            "temperature": data.temperature,
-            "humidity": data.humidity,
-            "ingestion_time": datetime.now().isoformat()
-        }
+            # Payload vorbereiten
+            message_value = {
+                "sensor_id": data.sensor_id,
+                "timestamp": data.timestamp.isoformat(),
+                "temperature": data.temperature,
+                "humidity": data.humidity,
+                "ingestion_time": datetime.now().isoformat()
+            }
 
-        # Kafka Key = Sensor-ID (für Partitionierung)
-        message_key = data.sensor_id.encode('utf-8')
-        message_bytes = json.dumps(message_value).encode('utf-8')
+            # Kafka Key = Sensor-ID (für Partitionierung)
+            message_key = data.sensor_id.encode('utf-8')
+            message_bytes = json.dumps(message_value).encode('utf-8')
 
-        logger.info(f"Sende Daten an Kafka Topic '{KAFKA_TOPIC}' - Sensor: {data.sensor_id}")
+            logger.info(f"Sende Daten an Kafka Topic '{KAFKA_TOPIC}' - Sensor: {data.sensor_id}")
 
-        # Callback für Delivery-Report
-        delivery_report = {}
-        def acked(err, msg):
-            if err is not None:
-                delivery_report['error'] = err
-            else:
-                delivery_report['partition'] = msg.partition()
-                delivery_report['offset'] = msg.offset()
+            # Callback für Delivery-Report
+            delivery_report = {}
+            def acked(err, msg):
+                if err is not None:
+                    delivery_report['error'] = err
+                else:
+                    delivery_report['partition'] = msg.partition()
+                    delivery_report['offset'] = msg.offset()
 
-        # Sende an Kafka (asynchron, dann flush für Blockierung)
-        producer.produce(
-            topic=KAFKA_TOPIC,
-            key=message_key,
-            value=message_bytes,
-            callback=acked
-        )
-        producer.flush(10)
+            # Sende an Kafka (asynchron, dann flush für Blockierung)
+            producer.produce(
+                topic=KAFKA_TOPIC,
+                key=message_key,
+                value=message_bytes,
+                callback=acked
+            )
+            producer.flush(10)
 
-        if 'error' in delivery_report:
-            logger.error(f"Kafka Fehler beim Senden: {delivery_report['error']}")
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Kafka nicht verfügbar: {str(delivery_report['error'])}"
+            if 'error' in delivery_report:
+                logger.error(f"Kafka Fehler beim Senden: {delivery_report['error']}")
+                # Metriken: Fehler
+                ingestion_counter.labels(sensor_id=data.sensor_id, status='error').inc()
+                kafka_publish_counter.labels(topic=KAFKA_TOPIC, status='error').inc()
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"Kafka nicht verfügbar: {str(delivery_report['error'])}"
+                )
+
+            logger.info(
+                f"Erfolgreich gesendet - Partition: {delivery_report.get('partition')}, "
+                f"Offset: {delivery_report.get('offset')}"
             )
 
-        logger.info(
-            f"Erfolgreich gesendet - Partition: {delivery_report.get('partition')}, "
-            f"Offset: {delivery_report.get('offset')}"
-        )
+            # Metriken: Erfolg
+            ingestion_counter.labels(sensor_id=data.sensor_id, status='success').inc()
+            kafka_publish_counter.labels(topic=KAFKA_TOPIC, status='success').inc()
 
-        return IngestionResponse(
-            status="success",
-            message="Sensor-Daten erfolgreich aufgenommen",
-            sensor_id=data.sensor_id,
-            kafka_partition=delivery_report.get('partition', -1),
-            kafka_offset=delivery_report.get('offset', -1),
-            timestamp=datetime.now()
-        )
+            return IngestionResponse(
+                status="success",
+                message="Sensor-Daten erfolgreich aufgenommen",
+                sensor_id=data.sensor_id,
+                kafka_partition=delivery_report.get('partition', -1),
+                kafka_offset=delivery_report.get('offset', -1),
+                timestamp=datetime.now()
+            )
 
-    except KafkaException as e:
-        logger.error(f"Kafka Fehler beim Senden: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Kafka nicht verfügbar: {str(e)}"
+        except KafkaException as e:
+            logger.error(f"Kafka Fehler beim Senden: {e}")
+            # Metriken: Fehler
+            ingestion_counter.labels(sensor_id=data.sensor_id, status='error').inc()
+            kafka_publish_counter.labels(topic=KAFKA_TOPIC, status='error').inc()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Kafka nicht verfügbar: {str(e)}"
         )
     except Exception as e:
         logger.error(f"Unerwarteter Fehler: {e}")
@@ -385,10 +443,12 @@ async def get_sensor_data(
     if limit < 1 or limit > 10000:
         limit = 100
 
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
+    # Metriken: DB Query Timer
+    with db_query_duration.labels(query_type='get_sensor_data').time():
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(
                     """
                     SELECT sensor_id, timestamp, temperature, humidity
                     FROM analytics_data
