@@ -143,8 +143,8 @@ Bitte manuell installieren:
     Write-Log "SUCCESS" "Chart valide"
     #endregion 3. Chart Lint
 
-    #region 3.5. FastAPI Image bauen
-    Write-Log "INFO" "[3.A/5] Baue FastAPI Image..."
+    #region 3.A FastAPI Image bauen
+    Write-Log "INFO" "[3A/5] Baue FastAPI Image..."
     Pop-Location  # Zurück zum Root-Verzeichnis
 
     $deployScript = Join-Path $PSScriptRoot "fastapi\deploy-fastapi.ps1"
@@ -160,10 +160,25 @@ Bitte manuell installieren:
     }
 
     Push-Location $chartPath  # Zurück zum Chart-Verzeichnis
-    #endregion 3.5. FastAPI Image bauen
+    #endregion 3.A FastAPI Image bauen
 
-        #region 3.5. FastAPI Image bauen
-    Write-Log "INFO" "[3.B/5] Baue Spark Image..."
+    #region 3.B Postgres Connector Image bauen
+    Write-Log "INFO" "[3B/5] Baue Postgres Connector Image..."
+    Set-Location $scriptRoot  # Zurück zum Root
+
+    $deployScript = Join-Path $scriptRoot "postgresql-connector\deploy-postgres-connector.ps1"
+    if (Test-Path $deployScript) {
+        & $deployScript -noHelm
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Postgres Connector Deployment fehlgeschlagen. Fahre ohne Postgres Connector-Update fort."
+        }
+    } else {
+        Write-Warning "$deployScript nicht gefunden."
+    }
+    #endregion 3.B Postgres Connector Image bauen
+
+    #region 3.C Spark Image bauen
+    Write-Log "INFO" "[3C/5] Baue Spark Image..."
     Pop-Location  # Zurück zum Root-Verzeichnis
 
     $deployScript = Join-Path $PSScriptRoot "spark\deploy-spark.ps1"
@@ -179,7 +194,7 @@ Bitte manuell installieren:
     }
 
     Push-Location $chartPath  # Zurück zum Chart-Verzeichnis
-    #endregion 3.5. FastAPI Image bauen
+    #endregion 3.C Spark Image bauen
 
 
     #region 4. Installation

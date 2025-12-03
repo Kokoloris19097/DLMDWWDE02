@@ -1,4 +1,4 @@
-# FastAPI - Build & Deploy Script
+﻿# FastAPI - Build & Deploy Script
 # DLMDWWDE02 Master Project
 param (
     [switch]$noHelm
@@ -9,7 +9,9 @@ $IMAGE_TAG = "latest"
 $LOCAL_IMAGE = "localhost/${IMAGE_NAME}:${IMAGE_TAG}"
 $CLUSTER_NAME = "system-cluster"
 $HELM_RELEASE = "system-cluster"
+$env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 $global:starttime = Get-Date
+
 function Write-Log {
     param (
         [string]$LEVEL = "INFO",
@@ -74,8 +76,6 @@ try {
 
     # 4. Image in Kind Cluster laden
     Write-Log "INFO" "[4/6] Lade Image in Kind Cluster..."
-    # Setze Podman als Provider für Kind
-    $env:KIND_EXPERIMENTAL_PROVIDER = "podman"
     # Exportiere als Tar für Kind's Podman Provider
     podman save ${LOCAL_IMAGE} -o fastapi-image.tar
     if ($LASTEXITCODE -ne 0) {
