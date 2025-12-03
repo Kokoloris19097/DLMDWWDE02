@@ -27,12 +27,13 @@ class TestKafkaTopics:
     """Kafka topic configuration tests"""
 
     @pytest.mark.functional
-    @pytest.mark.dependency(
-        name="topic_exists",
-        depends=["kafka_topics_accessible"], scope="session"
-    )
+    @pytest.mark.dependency(name="topic_exists", scope="session")
     def test_topic_exists(self, kafka_exec, config):
-        """Verify analytics-data topic exists"""
+        """
+        Verify analytics-data topic exists
+
+        Dependencies: kafka_topics_accessible
+        """
         success, output = kafka_exec(
             "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
         )
@@ -40,12 +41,13 @@ class TestKafkaTopics:
         assert config.KAFKA_TOPIC in output, f"Topic {config.KAFKA_TOPIC} not found"
 
     @pytest.mark.functional
-    @pytest.mark.dependency(
-        name="topic_configuration",
-        depends=["topic_exists"], scope="session"
-    )
+    @pytest.mark.dependency(name="topic_configuration", scope="session")
     def test_topic_configuration(self, kafka_exec, config):
-        """Verify topic has correct configuration"""
+        """
+        Verify topic has correct configuration
+
+        Dependencies: topic_exists
+        """
         success, output = kafka_exec(
             f"/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 "
             f"--describe --topic {config.KAFKA_TOPIC}"
@@ -68,12 +70,13 @@ class TestConnectorConfiguration:
     """Kafka Connect connector configuration tests"""
 
     @pytest.mark.functional
-    @pytest.mark.dependency(
-        name="connector_config_valid",
-        depends=["kafka_connect_api_available"], scope="session"
-    )
+    @pytest.mark.dependency(name="connector_config_valid", scope="session")
     def test_connector_config_valid(self, connect_exec):
-        """Verify connector configuration is correct"""
+        """
+        Verify connector configuration is correct
+
+        Dependencies: kafka_connect_api_available
+        """
         success, output = connect_exec(
             "curl -s http://localhost:8083/connectors/postgresql-sink/config"
         )
@@ -99,20 +102,17 @@ class TestPipelineEndToEnd:
 
     @pytest.mark.functional
     @pytest.mark.slow
-    @pytest.mark.dependency(
-        name="message_to_postgresql",
-        depends=[
-            "topic_exists",
-            "postgresql_sink_connector_running",
-            "connect_to_kafka_broker",
-            "connect_to_postgresql",
-            "analytics_data_table_exists"
-        ], scope="session"
-    )
+    @pytest.mark.dependency(name="message_to_postgresql", scope="session")
     def test_message_to_postgresql(
         self, kafka_exec, postgres_exec, connect_exec, test_message, config
     ):
-        """Test complete pipeline: Kafka message -> PostgreSQL"""
+        """
+        Test complete pipeline: Kafka message -> PostgreSQL
+
+        Dependencies: topic_exists, postgresql_sink_connector_running,
+                      connect_to_kafka_broker, connect_to_postgresql,
+                      analytics_data_table_exists
+        """
         # 1. Verify connector is running
         self._verify_connector_running(connect_exec)
 
@@ -196,13 +196,13 @@ class TestFastAPIQueryEndpoints:
     """Test FastAPI query endpoints for data retrieval"""
 
     @pytest.mark.functional
-    @pytest.mark.dependency(
-        name="list_sensors",
-        depends=["fastapi_ready_endpoint", "analytics_data_table_exists"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="list_sensors", scope="session")
     def test_list_sensors(self, fastapi_exec):
-        """Verify /sensors returns list of sensors"""
+        """
+        Verify /sensors returns list of sensors
+
+        Dependencies: fastapi_ready_endpoint, analytics_data_table_exists
+        """
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to call /sensors: {output}"
 
@@ -221,9 +221,12 @@ class TestFastAPIQueryEndpoints:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["fastapi_ready_endpoint"])
     def test_list_sensors_with_limit(self, fastapi_exec):
-        """Verify /sensors respects limit parameter"""
+        """
+        Verify /sensors respects limit parameter
+
+        Dependencies: fastapi_ready_endpoint
+        """
         success, output = fastapi_exec('curl -s "http://localhost:8000/sensors?limit=5"')
         assert success, f"Failed to call /sensors with limit: {output}"
 
@@ -235,13 +238,13 @@ class TestFastAPIQueryEndpoints:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(
-        name="get_sensor_data",
-        depends=["list_sensors"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="get_sensor_data", scope="session")
     def test_get_sensor_data(self, fastapi_exec):
-        """Verify /sensors/{sensor_id}/data returns time-series data"""
+        """
+        Verify /sensors/{sensor_id}/data returns time-series data
+
+        Dependencies: list_sensors
+        """
         # First get a sensor_id
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to get sensors: {output}"
@@ -273,9 +276,12 @@ class TestFastAPIQueryEndpoints:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["list_sensors"])
     def test_get_sensor_data_with_time_range(self, fastapi_exec):
-        """Verify /sensors/{sensor_id}/data respects time range"""
+        """
+        Verify /sensors/{sensor_id}/data respects time range
+
+        Dependencies: list_sensors
+        """
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to get sensors: {output}"
 
@@ -303,9 +309,12 @@ class TestFastAPIQueryEndpoints:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["list_sensors"])
     def test_get_sensor_data_with_limit(self, fastapi_exec):
-        """Verify /sensors/{sensor_id}/data respects limit parameter"""
+        """
+        Verify /sensors/{sensor_id}/data respects limit parameter
+
+        Dependencies: list_sensors
+        """
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to get sensors: {output}"
 
@@ -328,9 +337,12 @@ class TestFastAPIQueryEndpoints:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["fastapi_ready_endpoint"])
     def test_get_sensor_data_nonexistent_sensor(self, fastapi_exec):
-        """Verify /sensors/{sensor_id}/data returns empty list for nonexistent sensor"""
+        """
+        Verify /sensors/{sensor_id}/data returns empty list for nonexistent sensor
+
+        Dependencies: fastapi_ready_endpoint
+        """
         success, output = fastapi_exec(
             'curl -s "http://localhost:8000/sensors/NONEXISTENT-999/data"'
         )
@@ -344,13 +356,13 @@ class TestFastAPIQueryEndpoints:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(
-        name="get_sensor_stats",
-        depends=["list_sensors"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="get_sensor_stats", scope="session")
     def test_get_sensor_stats(self, fastapi_exec):
-        """Verify /sensors/{sensor_id}/stats returns aggregated statistics"""
+        """
+        Verify /sensors/{sensor_id}/stats returns aggregated statistics
+
+        Dependencies: list_sensors
+        """
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to get sensors: {output}"
 
@@ -389,9 +401,12 @@ class TestFastAPIQueryEndpoints:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["list_sensors"])
     def test_get_sensor_stats_with_time_range(self, fastapi_exec):
-        """Verify /sensors/{sensor_id}/stats respects time range"""
+        """
+        Verify /sensors/{sensor_id}/stats respects time range
+
+        Dependencies: list_sensors
+        """
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to get sensors: {output}"
 
@@ -420,9 +435,12 @@ class TestFastAPIQueryEndpoints:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["fastapi_ready_endpoint"])
     def test_get_sensor_stats_nonexistent_sensor(self, fastapi_exec):
-        """Verify /sensors/{sensor_id}/stats returns 404 for nonexistent sensor"""
+        """
+        Verify /sensors/{sensor_id}/stats returns 404 for nonexistent sensor
+
+        Dependencies: fastapi_ready_endpoint
+        """
         success, output = fastapi_exec(
             'curl -s -w "\\n%{http_code}" "http://localhost:8000/sensors/NONEXISTENT-999/stats"'
         )
@@ -442,14 +460,6 @@ class TestCompleteEndToEndWorkflow:
 
     @pytest.mark.functional
     @pytest.mark.slow
-    @pytest.mark.dependency(
-        depends=[
-            "message_to_postgresql",
-            "list_sensors",
-            "get_sensor_data",
-            "get_sensor_stats"
-        ]
-    )
     def test_complete_workflow(self, fastapi_exec):
         """
         Complete workflow test:
@@ -457,6 +467,9 @@ class TestCompleteEndToEndWorkflow:
         2. Get data for first sensor
         3. Get stats for first sensor
         4. Verify data consistency between endpoints
+
+        Dependencies: message_to_postgresql, list_sensors,
+                      get_sensor_data, get_sensor_stats
         """
         # Step 1: List sensors
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')

@@ -51,13 +51,13 @@ class TestKafkaHealth:
         assert phase == "Running", f"kafka-controller-1 is not running: {phase}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="kafka_topics_accessible",
-        depends=["kafka_broker_0_running"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="kafka_topics_accessible", scope="session")
     def test_kafka_topics_accessible(self, kafka_exec):
-        """Verify Kafka topics can be listed"""
+        """
+        Verify Kafka topics can be listed
+
+        Dependencies: kafka_broker_0_running
+        """
         success, output = kafka_exec(
             "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
         )
@@ -72,13 +72,13 @@ class TestKafkaConnectHealth:
     """Kafka Connect health checks"""
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="kafka_connect_running",
-        depends=["kafka_broker_0_running", "kafka_broker_1_running"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="kafka_connect_running", scope="session")
     def test_kafka_connect_running(self, get_deployment_ready_replicas, config):
-        """Verify Kafka Connect deployment is running"""
+        """
+        Verify Kafka Connect deployment is running
+
+        Dependencies: kafka_broker_0_running, kafka_broker_1_running
+        """
         success, replicas = get_deployment_ready_replicas(
             "kafka-connect", config.MESSAGING_NAMESPACE
         )
@@ -86,37 +86,37 @@ class TestKafkaConnectHealth:
         assert replicas == "1", f"Kafka Connect not ready: {replicas}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="kafka_connect_api_available",
-        depends=["kafka_connect_running"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="kafka_connect_api_available", scope="session")
     def test_kafka_connect_api_available(self, connect_exec):
-        """Verify Kafka Connect REST API is responding"""
+        """
+        Verify Kafka Connect REST API is responding
+
+        Dependencies: kafka_connect_running
+        """
         success, output = connect_exec("curl -s http://localhost:8083/")
         assert success, f"Failed to reach Connect API: {output}"
         assert "version" in output, f"Invalid API response: {output}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="postgresql_sink_connector_exists",
-        depends=["kafka_connect_api_available"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="postgresql_sink_connector_exists", scope="session")
     def test_postgresql_sink_connector_exists(self, connect_exec):
-        """Verify postgresql-sink connector is registered"""
+        """
+        Verify postgresql-sink connector is registered
+
+        Dependencies: kafka_connect_api_available
+        """
         success, output = connect_exec("curl -s http://localhost:8083/connectors")
         assert success, f"Failed to list connectors: {output}"
         assert "postgresql-sink" in output, f"Connector not found: {output}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="postgresql_sink_connector_running",
-        depends=["postgresql_sink_connector_exists"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="postgresql_sink_connector_running", scope="session")
     def test_postgresql_sink_connector_running(self, connect_exec):
-        """Verify postgresql-sink connector and task are running"""
+        """
+        Verify postgresql-sink connector and task are running
+
+        Dependencies: postgresql_sink_connector_exists
+        """
         success, output = connect_exec(
             "curl -s http://localhost:8083/connectors/postgresql-sink/status"
         )
@@ -153,24 +153,24 @@ class TestPostgreSQLHealth:
         assert phase == "Running", f"PostgreSQL is not running: {phase}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="postgresql_accepting_connections",
-        depends=["postgresql_running"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="postgresql_accepting_connections", scope="session")
     def test_postgresql_accepting_connections(self, postgres_exec):
-        """Verify PostgreSQL accepts connections"""
+        """
+        Verify PostgreSQL accepts connections
+
+        Dependencies: postgresql_running
+        """
         success, output = postgres_exec("psql -U postgres -d sensordata -c 'SELECT 1'")
         assert success, f"Failed to connect to PostgreSQL: {output}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="analytics_data_table_exists",
-        depends=["postgresql_accepting_connections"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="analytics_data_table_exists", scope="session")
     def test_analytics_data_table_exists(self, postgres_exec):
-        """Verify analytics_data table exists"""
+        """
+        Verify analytics_data table exists
+
+        Dependencies: postgresql_accepting_connections
+        """
         success, output = postgres_exec(
             "psql -U postgres -d sensordata -t -c "
             "\"SELECT COUNT(*) FROM information_schema.tables WHERE table_name='analytics_data'\""
@@ -187,25 +187,25 @@ class TestFastAPIHealth:
     """FastAPI health checks"""
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="fastapi_running",
-        depends=["kafka_broker_0_running"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="fastapi_running", scope="session")
     def test_fastapi_running(self, fastapi_exec):
-        """Verify FastAPI pod is running and accessible"""
+        """
+        Verify FastAPI pod is running and accessible
+
+        Dependencies: kafka_broker_0_running
+        """
         success, output = fastapi_exec("echo OK")
         assert success, f"FastAPI pod is not reachable: {output}"
         assert "OK" in output, f"Unexpected output: {output}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="fastapi_health_endpoint",
-        depends=["fastapi_running"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="fastapi_health_endpoint", scope="session")
     def test_fastapi_health_endpoint(self, fastapi_exec):
-        """Verify FastAPI /health endpoint returns 200"""
+        """
+        Verify FastAPI /health endpoint returns 200
+
+        Dependencies: fastapi_running
+        """
         success, output = fastapi_exec(
             'curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health'
         )
@@ -213,13 +213,13 @@ class TestFastAPIHealth:
         assert "200" in output, f"Health endpoint returned non-200: {output}"
 
     @pytest.mark.health
-    @pytest.mark.dependency(
-        name="fastapi_ready_endpoint",
-        depends=["fastapi_health_endpoint"],
-        scope="session"
-    )
+    @pytest.mark.dependency(name="fastapi_ready_endpoint", scope="session")
     def test_fastapi_ready_endpoint(self, fastapi_exec):
-        """Verify FastAPI /ready endpoint returns 200"""
+        """
+        Verify FastAPI /ready endpoint returns 200
+
+        Dependencies: fastapi_health_endpoint
+        """
         success, output = fastapi_exec(
             'curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/ready'
         )

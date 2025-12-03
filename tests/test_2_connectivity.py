@@ -39,36 +39,39 @@ class TestKafkaConnectivity:
     BROKER_HOST = "kafka-broker-{}.kafka-broker.messaging.svc.cluster.local"
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="broker_to_controller_0",
-        depends=["kafka_broker_0_running", "kafka_controller_0_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="broker_to_controller_0", scope="session")
     def test_broker_to_controller_0(self, kafka_exec):
-        """Verify broker can reach controller-0"""
+        """
+        Verify broker can reach controller-0
+
+        Dependencies: kafka_broker_0_running, kafka_controller_0_running
+        """
         host = self.CONTROLLER_HOST.format(0)
         success, output = kafka_exec(tcp_check_cmd(host, 9093))
         assert success, f"Command failed: {output}"
         assert "OK" in output, f"Cannot reach controller-0: {output}"
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="broker_to_controller_1",
-        depends=["kafka_broker_0_running", "kafka_controller_1_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="broker_to_controller_1", scope="session")
     def test_broker_to_controller_1(self, kafka_exec):
-        """Verify broker can reach controller-1"""
+        """
+        Verify broker can reach controller-1
+
+        Dependencies: kafka_broker_0_running, kafka_controller_1_running
+        """
         host = self.CONTROLLER_HOST.format(1)
         success, output = kafka_exec(tcp_check_cmd(host, 9093))
         assert success, f"Command failed: {output}"
         assert "OK" in output, f"Cannot reach controller-1: {output}"
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="broker_0_to_broker_1",
-        depends=["kafka_broker_0_running", "kafka_broker_1_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="broker_0_to_broker_1", scope="session")
     def test_broker_0_to_broker_1(self, kafka_exec):
-        """Verify broker-0 can reach broker-1"""
+        """
+        Verify broker-0 can reach broker-1
+
+        Dependencies: kafka_broker_0_running, kafka_broker_1_running
+        """
         host = self.BROKER_HOST.format(1)
         success, output = kafka_exec(tcp_check_cmd(host, 9092))
         assert success, f"Command failed: {output}"
@@ -86,12 +89,13 @@ class TestKafkaConnectConnectivity:
     POSTGRESQL_HOST = "postgresql.data.svc.cluster.local"
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="connect_to_kafka_broker",
-        depends=["kafka_connect_running", "kafka_broker_0_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="connect_to_kafka_broker", scope="session")
     def test_connect_to_kafka_broker(self, connect_exec):
-        """Verify Kafka Connect can reach Kafka broker"""
+        """
+        Verify Kafka Connect can reach Kafka broker
+
+        Dependencies: kafka_connect_running, kafka_broker_0_running
+        """
         success, output = connect_exec(
             tcp_check_cmd(self.KAFKA_BROKER_HOST, 9092)
         )
@@ -99,12 +103,13 @@ class TestKafkaConnectConnectivity:
         assert "OK" in output, f"Cannot reach Kafka broker: {output}"
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="connect_to_postgresql",
-        depends=["kafka_connect_running", "postgresql_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="connect_to_postgresql", scope="session")
     def test_connect_to_postgresql(self, connect_exec):
-        """Verify Kafka Connect can reach PostgreSQL"""
+        """
+        Verify Kafka Connect can reach PostgreSQL
+
+        Dependencies: kafka_connect_running, postgresql_running
+        """
         success, output = connect_exec(
             tcp_check_with_nc_fallback(self.POSTGRESQL_HOST, 5432)
         )
@@ -125,32 +130,35 @@ class TestEndpointsAvailable:
         assert output != "", f"No endpoints for {service}: {output}"
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="kafka_broker_endpoints",
-        depends=["kafka_broker_0_running", "kafka_broker_1_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="kafka_broker_endpoints", scope="session")
     def test_kafka_broker_endpoints(self, get_endpoints, config):
-        """Verify kafka-broker service has endpoints"""
+        """
+        Verify kafka-broker service has endpoints
+
+        Dependencies: kafka_broker_0_running, kafka_broker_1_running
+        """
         success, output = get_endpoints("kafka-broker", config.MESSAGING_NAMESPACE)
         self._assert_endpoints_exist(success, output, "kafka-broker")
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="kafka_controller_endpoints",
-        depends=["kafka_controller_0_running", "kafka_controller_1_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="kafka_controller_endpoints", scope="session")
     def test_kafka_controller_endpoints(self, get_endpoints, config):
-        """Verify kafka-controller service has endpoints"""
+        """
+        Verify kafka-controller service has endpoints
+
+        Dependencies: kafka_controller_0_running, kafka_controller_1_running
+        """
         success, output = get_endpoints("kafka-controller", config.MESSAGING_NAMESPACE)
         self._assert_endpoints_exist(success, output, "kafka-controller")
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="postgresql_endpoints",
-        depends=["postgresql_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="postgresql_endpoints", scope="session")
     def test_postgresql_endpoints(self, get_endpoints, config):
-        """Verify postgresql service has endpoints"""
+        """
+        Verify postgresql service has endpoints
+
+        Dependencies: postgresql_running
+        """
         success, output = get_endpoints("postgresql", config.DATA_NAMESPACE)
         self._assert_endpoints_exist(success, output, "postgresql")
 
@@ -166,12 +174,13 @@ class TestFastAPIConnectivity:
     POSTGRESQL_HOST = "postgresql.data.svc.cluster.local"
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="fastapi_to_kafka_broker",
-        depends=["fastapi_running", "kafka_broker_0_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="fastapi_to_kafka_broker", scope="session")
     def test_fastapi_to_kafka_broker(self, fastapi_exec):
-        """Verify FastAPI can reach Kafka broker"""
+        """
+        Verify FastAPI can reach Kafka broker
+
+        Dependencies: fastapi_running, kafka_broker_0_running
+        """
         success, output = fastapi_exec(
             tcp_check_with_nc_fallback(self.KAFKA_BROKER_HOST, 9092)
         )
@@ -179,12 +188,13 @@ class TestFastAPIConnectivity:
         assert "OK" in output, f"FastAPI cannot reach Kafka broker: {output}"
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="fastapi_to_postgresql",
-        depends=["fastapi_running", "postgresql_running"], scope="session"
-    )
+    @pytest.mark.dependency(name="fastapi_to_postgresql", scope="session")
     def test_fastapi_to_postgresql(self, fastapi_exec):
-        """Verify FastAPI can reach PostgreSQL"""
+        """
+        Verify FastAPI can reach PostgreSQL
+
+        Dependencies: fastapi_running, postgresql_running
+        """
         success, output = fastapi_exec(
             tcp_check_with_nc_fallback(self.POSTGRESQL_HOST, 5432)
         )
@@ -192,12 +202,13 @@ class TestFastAPIConnectivity:
         assert "OK" in output, f"FastAPI cannot reach PostgreSQL: {output}"
 
     @pytest.mark.connectivity
-    @pytest.mark.dependency(
-        name="fastapi_db_connection",
-        depends=["fastapi_to_postgresql"], scope="session"
-    )
+    @pytest.mark.dependency(name="fastapi_db_connection", scope="session")
     def test_fastapi_db_connection(self, fastapi_exec):
-        """Verify FastAPI can establish database connection"""
+        """
+        Verify FastAPI can establish database connection
+
+        Dependencies: fastapi_to_postgresql
+        """
         # Use psql client to test DB connectivity from FastAPI pod
         cmd = (
             "psql -h postgresql.data.svc.cluster.local "
