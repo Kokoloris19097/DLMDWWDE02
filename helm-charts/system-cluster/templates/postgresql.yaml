@@ -121,8 +121,8 @@ data:
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
-      CREATE INDEX IF NOT EXISTS idx_sensor_readings_sensor_id ON sensor_readings(sensor_id);
-      CREATE INDEX IF NOT EXISTS idx_sensor_readings_timestamp ON sensor_readings(timestamp DESC);
+      CREATE INDEX IF NOT EXISTS idx_analytics_data_sensor_id ON analytics_data(sensor_id);
+      CREATE INDEX IF NOT EXISTS idx_analytics_data_timestamp ON analytics_data(timestamp DESC);
 
       GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {{ .Values.postgresql.env.APP_USER }};
       GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {{ .Values.postgresql.env.APP_USER }};
