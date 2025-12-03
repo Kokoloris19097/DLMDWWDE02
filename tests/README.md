@@ -14,7 +14,7 @@ flowchart TD
 
     A --> B --> C
 ```
-
+Eine detaillierte Visualisierung der Test-Abhängigkeiten finden Sie in [dependency_graph.md](dependency_graph.md).
 ---
 
 ## Testdateien
@@ -334,42 +334,54 @@ Wenn `kafka_broker_0_running` fehlschlägt:
 
 ## Dependency Graph
 
-### Session-Scoped Dependencies
+Das vollständige Dependency Graph finden Sie im Abschnitt **[Architektur](#architektur)** oben.
 
-```mermaid
-graph TD
-    %% Layer 1: Health
-    A[kafka_broker_0_running] --> B[kafka_topics_accessible]
-    A --> C[kafka_connect_running]
-    D[kafka_broker_1_running] --> C
-    C --> E[kafka_connect_api_available]
-    E --> F[postgresql_sink_connector_exists]
-    F --> G[postgresql_sink_connector_running]
+### Wichtige Dependency Chains
 
-    H[postgresql_running] --> I[postgresql_accepting_connections]
-    I --> J[sensor_readings_table_exists]
-
-    A --> K[fastapi_running]
-    K --> L[fastapi_health_endpoint]
-    L --> M[fastapi_ready_endpoint]
-
-    %% Layer 2: Connectivity
-    B --> N[topic_exists]
-    G --> O[message_to_postgresql]
-    J --> O
-
-    %% Layer 3: Functional
-    M --> P[list_sensors]
-    J --> P
-    P --> Q[get_sensor_data]
-    P --> R[get_sensor_stats]
-
-    O --> S[complete_workflow]
-    Q --> S
-    R --> S
+#### Critical Path (für End-to-End Workflow)
+```
+kafka_broker_0_running
+  ↓
+kafka_topics_accessible
+  ↓
+topic_exists
+  ↓
+message_to_postgresql ←─┬─ postgresql_sink_connector_running
+  ↓                     ├─ connect_to_kafka_broker
+  ↓                     ├─ connect_to_postgresql
+  ↓                     └─ sensor_readings_table_exists
+  ↓
+complete_workflow ←──┬─ list_sensors ←─ fastapi_ready_endpoint
+                     ├─ get_sensor_data
+                     └─ get_sensor_stats
 ```
 
----
+#### FastAPI Query Path
+```
+kafka_broker_0_running
+  ↓
+fastapi_running
+  ↓
+fastapi_health_endpoint
+  ↓
+fastapi_ready_endpoint ───┐
+                          ├─→ list_sensors ←─ sensor_readings_table_exists
+                          │      ↓
+                          │   get_sensor_data
+                          │      ↓
+                          │   get_sensor_stats
+                          └─→ (query tests für nonexistent sensors)
+```
+
+#### PostgreSQL Data Path
+```
+postgresql_running
+  ↓
+postgresql_accepting_connections
+  ↓
+sensor_readings_table_exists ───┬─→ message_to_postgresql
+                                └─→ list_sensors
+```---
 
 ## Troubleshooting
 
