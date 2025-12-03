@@ -177,3 +177,51 @@ class TestPostgreSQLHealth:
         )
         assert success, f"Failed to query tables: {output}"
         assert "1" in output, f"analytics_data table not found: {output}"
+
+
+# =============================================================================
+# LAYER 1D: FASTAPI HEALTH (Independent Foundation)
+# =============================================================================
+
+class TestFastAPIHealth:
+    """FastAPI health checks"""
+
+    @pytest.mark.health
+    @pytest.mark.dependency(
+        name="fastapi_running",
+        depends=["kafka_broker_0_running"],
+        scope="session"
+    )
+    def test_fastapi_running(self, fastapi_exec):
+        """Verify FastAPI pod is running and accessible"""
+        success, output = fastapi_exec("echo OK")
+        assert success, f"FastAPI pod is not reachable: {output}"
+        assert "OK" in output, f"Unexpected output: {output}"
+
+    @pytest.mark.health
+    @pytest.mark.dependency(
+        name="fastapi_health_endpoint",
+        depends=["fastapi_running"],
+        scope="session"
+    )
+    def test_fastapi_health_endpoint(self, fastapi_exec):
+        """Verify FastAPI /health endpoint returns 200"""
+        success, output = fastapi_exec(
+            'curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health'
+        )
+        assert success, f"Failed to reach health endpoint: {output}"
+        assert "200" in output, f"Health endpoint returned non-200: {output}"
+
+    @pytest.mark.health
+    @pytest.mark.dependency(
+        name="fastapi_ready_endpoint",
+        depends=["fastapi_health_endpoint"],
+        scope="session"
+    )
+    def test_fastapi_ready_endpoint(self, fastapi_exec):
+        """Verify FastAPI /ready endpoint returns 200"""
+        success, output = fastapi_exec(
+            'curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/ready'
+        )
+        assert success, f"Failed to reach ready endpoint: {output}"
+        assert "200" in output, f"Ready endpoint returned non-200: {output}"

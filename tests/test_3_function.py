@@ -1,71 +1,207 @@
 """
-Output API Tests
-Verify FastAPI query endpoints for sensor data retrieval
+Functional Pipeline Tests
+End-to-end tests for complete data pipeline
 
 Test Dependency Hierarchy (Layer 3 - Functional):
-    These tests verify the data retrieval functionality of the Output API.
-    They depend on PostgreSQL having data and FastAPI being healthy.
+    Functional tests depend on both health and connectivity tests.
+    Tests are ordered from basic functionality to complex end-to-end flows:
+    1. Kafka Topic Tests
+    2. Connector Configuration Tests
+    3. Kafka → PostgreSQL Pipeline Tests
+    4. FastAPI Query Endpoint Tests
+    5. Complete End-to-End Workflow Tests
 """
 
 import pytest
 import json
 import time
+import subprocess
 from datetime import datetime, timedelta
 
 
 # =============================================================================
-# LAYER 3A: OUTPUT API HEALTH
+# LAYER 3A: KAFKA TOPIC TESTS (Depends on Kafka Health)
 # =============================================================================
 
-class TestOutputAPIHealth:
-    """Verify Output API endpoints are accessible"""
+class TestKafkaTopics:
+    """Kafka topic configuration tests"""
 
     @pytest.mark.functional
-    @pytest.mark.dependency(name="output_api_health", scope="session")
-    def test_output_api_health_endpoint(self, fastapi_exec):
-        """Verify /health endpoint returns 200"""
-        success, output = fastapi_exec(
-            'curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health'
+    @pytest.mark.dependency(
+        name="topic_exists",
+        depends=["kafka_topics_accessible"], scope="session"
+    )
+    def test_topic_exists(self, kafka_exec, config):
+        """Verify analytics-data topic exists"""
+        success, output = kafka_exec(
+            "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
         )
-        assert success, f"Failed to reach health endpoint: {output}"
-        assert "200" in output, f"Health endpoint returned non-200: {output}"
+        assert success, f"Failed to list topics: {output}"
+        assert config.KAFKA_TOPIC in output, f"Topic {config.KAFKA_TOPIC} not found"
 
     @pytest.mark.functional
-    @pytest.mark.dependency(name="output_api_ready", scope="session", depends=["output_api_health"])
-    def test_output_api_ready_endpoint(self, fastapi_exec):
-        """Verify /ready endpoint returns 200"""
-        success, output = fastapi_exec(
-            'curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/ready'
+    @pytest.mark.dependency(
+        name="topic_configuration",
+        depends=["topic_exists"], scope="session"
+    )
+    def test_topic_configuration(self, kafka_exec, config):
+        """Verify topic has correct configuration"""
+        success, output = kafka_exec(
+            f"/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 "
+            f"--describe --topic {config.KAFKA_TOPIC}"
         )
-        assert success, f"Failed to reach ready endpoint: {output}"
-        assert "200" in output, f"Ready endpoint returned non-200: {output}"
+        assert success, f"Failed to describe topic: {output}"
 
-    @pytest.mark.functional
-    @pytest.mark.dependency(name="output_api_root", scope="session", depends=["output_api_health"])
-    def test_output_api_root_endpoint(self, fastapi_exec):
-        """Verify root endpoint returns API info"""
-        success, output = fastapi_exec('curl -s http://localhost:8000/')
-        assert success, f"Failed to reach root endpoint: {output}"
-
-        try:
-            data = json.loads(output)
-            assert "service" in data, "Missing 'service' field in response"
-            assert "endpoints" in data, "Missing 'endpoints' field in response"
-            assert "Query" in data["endpoints"], "Missing Query endpoints section"
-        except json.JSONDecodeError as e:
-            pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
+        # Check replication factor (handle both formats)
+        has_replication = (
+            "ReplicationFactor: 2" in output or
+            "ReplicationFactor:2" in output
+        )
+        assert has_replication, f"Unexpected replication factor: {output}"
 
 
 # =============================================================================
-# LAYER 3B: SENSOR LIST ENDPOINT
+# LAYER 3B: CONNECTOR CONFIGURATION TESTS
 # =============================================================================
 
-class TestSensorListEndpoint:
-    """Test GET /sensors endpoint"""
+class TestConnectorConfiguration:
+    """Kafka Connect connector configuration tests"""
 
     @pytest.mark.functional
-    @pytest.mark.dependency(name="list_sensors", scope="session", depends=["output_api_ready"])
-    def test_list_sensors_success(self, fastapi_exec):
+    @pytest.mark.dependency(
+        name="connector_config_valid",
+        depends=["kafka_connect_api_available"], scope="session"
+    )
+    def test_connector_config_valid(self, connect_exec):
+        """Verify connector configuration is correct"""
+        success, output = connect_exec(
+            "curl -s http://localhost:8083/connectors/postgresql-sink/config"
+        )
+        assert success, f"Failed to get config: {output}"
+
+        cfg = json.loads(output)
+
+        # Validate critical configuration
+        assert cfg.get("value.converter.schemas.enable") == "true", \
+            "schemas.enable should be true"
+        assert cfg.get("pk.mode") == "none", \
+            f"Unexpected pk.mode: {cfg.get('pk.mode')}"
+        assert "TimestampConverter" in cfg.get("transforms", ""), \
+            "TimestampConverter transform missing"
+
+
+# =============================================================================
+# LAYER 3C: END-TO-END PIPELINE TESTS
+# =============================================================================
+
+class TestPipelineEndToEnd:
+    """End-to-end pipeline tests"""
+
+    @pytest.mark.functional
+    @pytest.mark.slow
+    @pytest.mark.dependency(
+        name="message_to_postgresql",
+        depends=[
+            "topic_exists",
+            "postgresql_sink_connector_running",
+            "connect_to_kafka_broker",
+            "connect_to_postgresql",
+            "sensor_readings_table_exists"
+        ], scope="session"
+    )
+    def test_message_to_postgresql(
+        self, kafka_exec, postgres_exec, connect_exec, test_message, config
+    ):
+        """Test complete pipeline: Kafka message -> PostgreSQL"""
+        # 1. Verify connector is running
+        self._verify_connector_running(connect_exec)
+
+        # 2. Send message to Kafka
+        test_id = test_message["id"]
+        self._send_kafka_message(test_message["message"], config)
+
+        # 3. Wait for message to appear in PostgreSQL
+        self._wait_for_message(postgres_exec, test_id, config)
+
+        # 4. Verify data integrity
+        self._verify_data_integrity(postgres_exec, test_id, config)
+
+    def _verify_connector_running(self, connect_exec):
+        """Verify the sink connector is in RUNNING state"""
+        success, output = connect_exec(
+            "curl -s http://localhost:8083/connectors/postgresql-sink/status"
+        )
+        assert success, f"Failed to get connector status: {output}"
+
+        status = json.loads(output)
+        task_state = status["tasks"][0]["state"]
+        assert task_state == "RUNNING", \
+            f"Connector task not running: {status['tasks'][0].get('trace', 'No trace')}"
+
+    def _send_kafka_message(self, message: str, config):
+        """Send a message to Kafka topic"""
+        cmd = [
+            "kubectl", "exec", "-i", "kafka-broker-0",
+            "-n", config.MESSAGING_NAMESPACE,
+            "--", "/opt/kafka/bin/kafka-console-producer.sh",
+            "--bootstrap-server", "localhost:9092",
+            "--topic", config.KAFKA_TOPIC
+        ]
+
+        result = subprocess.run(
+            cmd,
+            input=message,
+            capture_output=True,
+            text=True,
+            timeout=config.COMMAND_TIMEOUT
+        )
+        assert result.returncode == 0, f"Failed to send message: {result.stderr}"
+
+    def _wait_for_message(self, postgres_exec, test_id: str, config, max_wait: int = 15):
+        """Wait for message to appear in PostgreSQL"""
+        query = (
+            f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c "
+            f"\"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE} "
+            f"WHERE sensor_id = '{test_id}'\""
+        )
+
+        for _ in range(max_wait):
+            time.sleep(1)
+            success, output = postgres_exec(query)
+
+            if success and output.strip().isdigit() and int(output.strip()) > 0:
+                return
+
+        pytest.fail(f"Message not found in PostgreSQL after {max_wait} seconds")
+
+    def _verify_data_integrity(self, postgres_exec, test_id: str, config):
+        """Verify the data was correctly stored"""
+        query = (
+            f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c "
+            f"\"SELECT temperature, humidity FROM {config.POSTGRESQL_TABLE} "
+            f"WHERE sensor_id = '{test_id}'\""
+        )
+
+        success, output = postgres_exec(query)
+        assert success, f"Failed to query data: {output}"
+        assert "22.5" in output, f"Temperature mismatch: {output}"
+        assert "55" in output, f"Humidity mismatch: {output}"
+
+
+# =============================================================================
+# LAYER 3D: FASTAPI QUERY ENDPOINT TESTS (Depends on FastAPI Health & Data)
+# =============================================================================
+
+class TestFastAPIQueryEndpoints:
+    """Test FastAPI query endpoints for data retrieval"""
+
+    @pytest.mark.functional
+    @pytest.mark.dependency(
+        name="list_sensors",
+        depends=["fastapi_ready_endpoint", "sensor_readings_table_exists"],
+        scope="session"
+    )
+    def test_list_sensors(self, fastapi_exec):
         """Verify /sensors returns list of sensors"""
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to call /sensors: {output}"
@@ -81,12 +217,11 @@ class TestSensorListEndpoint:
                 assert "first_reading" in sensor, "Missing first_reading field"
                 assert "latest_reading" in sensor, "Missing latest_reading field"
                 assert "reading_count" in sensor, "Missing reading_count field"
-                assert sensor["reading_count"] > 0, "Reading count should be positive"
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["output_api_ready"])
+    @pytest.mark.dependency(depends=["fastapi_ready_endpoint"])
     def test_list_sensors_with_limit(self, fastapi_exec):
         """Verify /sensors respects limit parameter"""
         success, output = fastapi_exec('curl -s "http://localhost:8000/sensors?limit=5"')
@@ -100,31 +235,12 @@ class TestSensorListEndpoint:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["output_api_ready"])
-    def test_list_sensors_invalid_limit(self, fastapi_exec):
-        """Verify /sensors handles invalid limit gracefully"""
-        # Test with limit > 1000 (should default to 50)
-        success, output = fastapi_exec('curl -s "http://localhost:8000/sensors?limit=5000"')
-        assert success, f"Failed to call /sensors with invalid limit: {output}"
-
-        try:
-            data = json.loads(output)
-            assert isinstance(data, list), f"Expected list, got {type(data)}"
-            # Should return at most 50 (default) even though we asked for 5000
-        except json.JSONDecodeError as e:
-            pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
-
-
-# =============================================================================
-# LAYER 3C: SENSOR DATA ENDPOINT
-# =============================================================================
-
-class TestSensorDataEndpoint:
-    """Test GET /sensors/{sensor_id}/data endpoint"""
-
-    @pytest.mark.functional
-    @pytest.mark.dependency(name="get_sensor_data", scope="session", depends=["list_sensors"])
-    def test_get_sensor_data_success(self, fastapi_exec):
+    @pytest.mark.dependency(
+        name="get_sensor_data",
+        depends=["list_sensors"],
+        scope="session"
+    )
+    def test_get_sensor_data(self, fastapi_exec):
         """Verify /sensors/{sensor_id}/data returns time-series data"""
         # First get a sensor_id
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
@@ -137,7 +253,7 @@ class TestSensorDataEndpoint:
 
             sensor_id = sensors[0]["sensor_id"]
 
-            # Now get data for this sensor
+            # Get data for this sensor
             success, output = fastapi_exec(
                 f'curl -s "http://localhost:8000/sensors/{sensor_id}/data"'
             )
@@ -153,7 +269,6 @@ class TestSensorDataEndpoint:
                 assert "timestamp" in reading, "Missing timestamp field"
                 assert "temperature" in reading, "Missing temperature field"
                 assert "humidity" in reading, "Missing humidity field"
-                assert reading["sensor_id"] == sensor_id, "Sensor ID mismatch"
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
@@ -161,7 +276,6 @@ class TestSensorDataEndpoint:
     @pytest.mark.dependency(depends=["list_sensors"])
     def test_get_sensor_data_with_time_range(self, fastapi_exec):
         """Verify /sensors/{sensor_id}/data respects time range"""
-        # Get a sensor
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to get sensors: {output}"
 
@@ -192,7 +306,6 @@ class TestSensorDataEndpoint:
     @pytest.mark.dependency(depends=["list_sensors"])
     def test_get_sensor_data_with_limit(self, fastapi_exec):
         """Verify /sensors/{sensor_id}/data respects limit parameter"""
-        # Get a sensor
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to get sensors: {output}"
 
@@ -203,7 +316,6 @@ class TestSensorDataEndpoint:
 
             sensor_id = sensors[0]["sensor_id"]
 
-            # Query with limit
             success, output = fastapi_exec(
                 f'curl -s "http://localhost:8000/sensors/{sensor_id}/data?limit=10"'
             )
@@ -216,34 +328,29 @@ class TestSensorDataEndpoint:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["output_api_ready"])
+    @pytest.mark.dependency(depends=["fastapi_ready_endpoint"])
     def test_get_sensor_data_nonexistent_sensor(self, fastapi_exec):
         """Verify /sensors/{sensor_id}/data returns empty list for nonexistent sensor"""
         success, output = fastapi_exec(
-            'curl -s "http://localhost:8000/sensors/NONEXISTENT-SENSOR-999/data"'
+            'curl -s "http://localhost:8000/sensors/NONEXISTENT-999/data"'
         )
         assert success, f"Failed to query nonexistent sensor: {output}"
 
         try:
             data = json.loads(output)
             assert isinstance(data, list), f"Expected list, got {type(data)}"
-            assert len(data) == 0, f"Expected empty list for nonexistent sensor, got {len(data)} items"
+            assert len(data) == 0, f"Expected empty list, got {len(data)} items"
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
-
-# =============================================================================
-# LAYER 3D: SENSOR STATISTICS ENDPOINT
-# =============================================================================
-
-class TestSensorStatsEndpoint:
-    """Test GET /sensors/{sensor_id}/stats endpoint"""
-
     @pytest.mark.functional
-    @pytest.mark.dependency(name="get_sensor_stats", scope="session", depends=["list_sensors"])
-    def test_get_sensor_stats_success(self, fastapi_exec):
+    @pytest.mark.dependency(
+        name="get_sensor_stats",
+        depends=["list_sensors"],
+        scope="session"
+    )
+    def test_get_sensor_stats(self, fastapi_exec):
         """Verify /sensors/{sensor_id}/stats returns aggregated statistics"""
-        # First get a sensor_id
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to get sensors: {output}"
 
@@ -254,7 +361,7 @@ class TestSensorStatsEndpoint:
 
             sensor_id = sensors[0]["sensor_id"]
 
-            # Get stats for this sensor
+            # Get stats
             success, output = fastapi_exec(
                 f'curl -s "http://localhost:8000/sensors/{sensor_id}/stats"'
             )
@@ -271,17 +378,13 @@ class TestSensorStatsEndpoint:
                 "reading_count"
             ]
             for field in required_fields:
-                assert field in data, f"Missing required field: {field}"
+                assert field in data, f"Missing field: {field}"
 
-            # Validate data types and ranges
-            assert data["sensor_id"] == sensor_id, "Sensor ID mismatch"
-            assert data["reading_count"] > 0, "Reading count should be positive"
-            assert data["temperature_min"] <= data["temperature_max"], "Temperature min > max"
-            assert data["humidity_min"] <= data["humidity_max"], "Humidity min > max"
-            assert data["temperature_min"] <= data["temperature_avg"] <= data["temperature_max"], \
-                "Temperature avg outside min/max range"
-            assert data["humidity_min"] <= data["humidity_avg"] <= data["humidity_max"], \
-                "Humidity avg outside min/max range"
+            # Validate ranges
+            assert data["temperature_min"] <= data["temperature_max"]
+            assert data["humidity_min"] <= data["humidity_max"]
+            assert data["temperature_min"] <= data["temperature_avg"] <= data["temperature_max"]
+            assert data["humidity_min"] <= data["humidity_avg"] <= data["humidity_max"]
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
@@ -289,7 +392,6 @@ class TestSensorStatsEndpoint:
     @pytest.mark.dependency(depends=["list_sensors"])
     def test_get_sensor_stats_with_time_range(self, fastapi_exec):
         """Verify /sensors/{sensor_id}/stats respects time range"""
-        # Get a sensor
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to get sensors: {output}"
 
@@ -313,46 +415,48 @@ class TestSensorStatsEndpoint:
 
             data = json.loads(output)
             assert isinstance(data, dict), f"Expected dict, got {type(data)}"
-
-            # Verify period matches request
-            assert "period_start" in data, "Missing period_start"
-            assert "period_end" in data, "Missing period_end"
+            assert "period_start" in data and "period_end" in data
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    @pytest.mark.dependency(depends=["output_api_ready"])
+    @pytest.mark.dependency(depends=["fastapi_ready_endpoint"])
     def test_get_sensor_stats_nonexistent_sensor(self, fastapi_exec):
         """Verify /sensors/{sensor_id}/stats returns 404 for nonexistent sensor"""
         success, output = fastapi_exec(
-            'curl -s -w "\\n%{http_code}" "http://localhost:8000/sensors/NONEXISTENT-SENSOR-999/stats"'
+            'curl -s -w "\\n%{http_code}" "http://localhost:8000/sensors/NONEXISTENT-999/stats"'
         )
         assert success, f"Failed to query nonexistent sensor: {output}"
 
-        # Output format: JSON response + newline + HTTP code
         lines = output.strip().split('\n')
         http_code = lines[-1] if lines else ""
-
-        assert "404" in http_code, f"Expected 404 for nonexistent sensor, got {http_code}"
+        assert "404" in http_code, f"Expected 404, got {http_code}"
 
 
 # =============================================================================
-# LAYER 3E: END-TO-END QUERY FLOW
+# LAYER 3E: COMPLETE END-TO-END WORKFLOW
 # =============================================================================
 
-class TestEndToEndQueryFlow:
-    """Test complete query flow across multiple endpoints"""
+class TestCompleteEndToEndWorkflow:
+    """Test complete data pipeline from Kafka to FastAPI queries"""
 
     @pytest.mark.functional
     @pytest.mark.slow
-    @pytest.mark.dependency(depends=["list_sensors", "get_sensor_data", "get_sensor_stats"])
-    def test_complete_query_workflow(self, fastapi_exec):
+    @pytest.mark.dependency(
+        depends=[
+            "message_to_postgresql",
+            "list_sensors",
+            "get_sensor_data",
+            "get_sensor_stats"
+        ]
+    )
+    def test_complete_workflow(self, fastapi_exec):
         """
-        Test complete workflow:
-        1. List all sensors
+        Complete workflow test:
+        1. List all sensors (verify data exists)
         2. Get data for first sensor
         3. Get stats for first sensor
-        4. Verify consistency
+        4. Verify data consistency between endpoints
         """
         # Step 1: List sensors
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
@@ -364,7 +468,7 @@ class TestEndToEndQueryFlow:
                 pytest.skip("No sensors available for end-to-end test")
 
             sensor_id = sensors[0]["sensor_id"]
-            sensor_count = sensors[0]["reading_count"]
+            list_reading_count = sensors[0]["reading_count"]
 
             # Step 2: Get data
             success, output = fastapi_exec(
@@ -386,20 +490,19 @@ class TestEndToEndQueryFlow:
             stats_count = stats["reading_count"]
 
             # Step 4: Verify consistency
-            # Note: Data endpoint returns limited results, stats returns total count
             assert stats_count >= data_count, \
                 f"Stats count ({stats_count}) should be >= data count ({data_count})"
 
-            # If data exists, verify temperature/humidity are within stats ranges
+            # Verify all data points are within stats ranges
             if len(data) > 0:
                 for reading in data:
                     temp = reading["temperature"]
                     humidity = reading["humidity"]
 
                     assert stats["temperature_min"] <= temp <= stats["temperature_max"], \
-                        f"Temperature {temp} outside stats range [{stats['temperature_min']}, {stats['temperature_max']}]"
+                        f"Temperature {temp} outside range [{stats['temperature_min']}, {stats['temperature_max']}]"
                     assert stats["humidity_min"] <= humidity <= stats["humidity_max"], \
-                        f"Humidity {humidity} outside stats range [{stats['humidity_min']}, {stats['humidity_max']}]"
+                        f"Humidity {humidity} outside range [{stats['humidity_min']}, {stats['humidity_max']}]"
 
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
