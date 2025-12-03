@@ -131,6 +131,16 @@ try {
         exit 1
     }
 
+    Write-Host "Running pytest..." -ForegroundColor Yellow
+    Push-Location ./tests
+    pytest test_1_health.py -v --tb=short
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Tests fehlgeschlagen!"
+        exit 1
+    }
+
+
     # Prüfe auf nicht-running Pods und gebe deren Logs aus
     try {
         $pods = kubectl get pods --all-namespaces -o json | ConvertFrom-Json
