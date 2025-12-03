@@ -205,23 +205,28 @@ class TestFastAPIConnectivity:
     @pytest.mark.dependency(name="fastapi_db_connection", scope="session")
     def test_fastapi_db_connection(self, fastapi_exec):
         """
-        Verify FastAPI can establish database connection
+        Verify FastAPI can establish database connection using psycopg2
 
         Dependencies: fastapi_to_postgresql
         """
-        # Use psql client to test DB connectivity from FastAPI pod
+        # Use Python psycopg2 to test DB connectivity (available in FastAPI container)
         cmd = (
-            "psql -h postgresql.data.svc.cluster.local "
-            "-p 5432 -U appuser -d sensordata "
-            "-c 'SELECT 1' 2>&1"
+            "python -c \"import psycopg2; "
+            "conn = psycopg2.connect("
+            "host='postgresql.data.svc.cluster.local', "
+            "port=5432, "
+            "user='appuser', "
+            "password='appuser-secure-pw', "
+            "dbname='sensordata', "
+            "connect_timeout=5); "
+            "cur = conn.cursor(); "
+            "cur.execute('SELECT 1'); "
+            "result = cur.fetchone(); "
+            "cur.close(); "
+            "conn.close(); "
+            "print('OK' if result[0] == 1 else 'FAIL')\""
         )
-        success, output = fastapi_exec(f"PGPASSWORD=appuser-secure-pw {cmd}")
+        success, output = fastapi_exec(cmd)
 
-        # Check for successful connection (either "1" in output or specific success indicators)
-        if not success:
-            # Command might fail due to missing psql, try alternative check
-            pytest.skip(f"psql not available in FastAPI pod: {output}")
-
-        # Look for success indicators
-        assert "1 row" in output or "(1 row)" in output or "1" in output, \
-            f"Database connection test failed: {output}"
+        assert success, f"Failed to execute psycopg2 test: {output}"
+        assert "OK" in output, f"Database connection test failed: {output}"

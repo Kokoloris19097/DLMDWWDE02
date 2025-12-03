@@ -10,6 +10,7 @@ import uuid
 import shlex
 from dataclasses import dataclass
 from typing import Tuple, Callable
+from datetime import datetime
 
 
 # =============================================================================
@@ -253,21 +254,23 @@ def get_endpoints(config) -> Callable:
 def test_message():
     """Generate unique test message for pipeline tests"""
     test_id = f"test-{uuid.uuid4().hex[:8]}"
+    # Use current timestamp to ensure test data falls within default query ranges (last 7 days)
+    current_timestamp_ms = int(datetime.now().timestamp() * 1000)
     message = json.dumps({
         "schema": {
             "type": "struct",
             "fields": [
                 {"field": "sensor_id", "type": "string"},
                 {"field": "temperature", "type": "double"},
-                {"field": "humidity", "type": "int32"},
+                {"field": "humidity", "type": "double"},
                 {"field": "timestamp", "type": "int64", "name": "org.apache.kafka.connect.data.Timestamp"}
             ]
         },
         "payload": {
             "sensor_id": test_id,
             "temperature": 22.5,
-            "humidity": 55,
-            "timestamp": 1699000000000
+            "humidity": 55.0,
+            "timestamp": current_timestamp_ms
         }
     })
     return {"id": test_id, "message": message}
