@@ -64,7 +64,7 @@ Validiert, dass alle Kubernetes Pods laufen und ihre grundlegenden Endpoints err
 |------|-----------------|--------------|--------------|
 | `test_postgresql_running` | `postgresql_running` | - | Prüft ob PostgreSQL Pod läuft |
 | `test_postgresql_accepting_connections` | `postgresql_accepting_connections` | `postgresql_running` | Prüft ob PostgreSQL Verbindungen akzeptiert |
-| `test_sensor_readings_table_exists` | `sensor_readings_table_exists` | `postgresql_accepting_connections` | Prüft ob analytics_data Tabelle existiert |
+| `test_analytics_data_table_exists` | `analytics_data_table_exists` | `postgresql_accepting_connections` | Prüft ob analytics_data Tabelle existiert |
 
 #### 1D: TestFastAPIHealth
 **FastAPI Application Health**
@@ -148,7 +148,7 @@ Validiert die vollständige Funktionalität der Pipeline von Kafka bis FastAPI. 
 
 | Test | Dependency Name | Dependencies | Beschreibung |
 |------|-----------------|--------------|--------------|
-| `test_message_to_postgresql` | `message_to_postgresql` | `topic_exists`, `postgresql_sink_connector_running`, `connect_to_kafka_broker`, `connect_to_postgresql`, `sensor_readings_table_exists` | **End-to-End:** Sendet Nachricht an Kafka, wartet auf PostgreSQL Insert, validiert Datenintegrität |
+| `test_message_to_postgresql` | `message_to_postgresql` | `topic_exists`, `postgresql_sink_connector_running`, `connect_to_kafka_broker`, `connect_to_postgresql`, `analytics_data_table_exists` | **End-to-End:** Sendet Nachricht an Kafka, wartet auf PostgreSQL Insert, validiert Datenintegrität |
 
 **Helper Methods:**
 - `_verify_connector_running()` - Prüft Connector Status
@@ -161,7 +161,7 @@ Validiert die vollständige Funktionalität der Pipeline von Kafka bis FastAPI. 
 
 | Test | Dependency Name | Dependencies | Beschreibung |
 |------|-----------------|--------------|--------------|
-| `test_list_sensors` | `list_sensors` | `fastapi_ready_endpoint`, `sensor_readings_table_exists` | GET `/sensors` - Listet alle Sensoren |
+| `test_list_sensors` | `list_sensors` | `fastapi_ready_endpoint`, `analytics_data_table_exists` | GET `/sensors` - Listet alle Sensoren |
 | `test_list_sensors_with_limit` | - | `fastapi_ready_endpoint` | GET `/sensors?limit=5` - Pagination Test |
 | `test_get_sensor_data` | `get_sensor_data` | `list_sensors` | GET `/sensors/{id}/data` - Zeitreihen-Daten |
 | `test_get_sensor_data_with_time_range` | - | `list_sensors` | GET `/sensors/{id}/data?start=...&end=...` - Time Range Filter |
@@ -235,7 +235,7 @@ def config() -> TestConfig
 - `API_NAMESPACE = "api"`
 - `KAFKA_TOPIC = "analytics-data"`
 - `POSTGRESQL_DB = "sensordata"`
-- `POSTGRESQL_TABLE = "sensor_readings"`
+- `POSTGRESQL_TABLE = "analytics_data"`
 - `COMMAND_TIMEOUT = 30`
 
 ### Execution Fixtures
@@ -349,7 +349,7 @@ topic_exists
 message_to_postgresql ←─┬─ postgresql_sink_connector_running
   ↓                     ├─ connect_to_kafka_broker
   ↓                     ├─ connect_to_postgresql
-  ↓                     └─ sensor_readings_table_exists
+  ↓                     └─ analytics_data_table_exists
   ↓
 complete_workflow ←──┬─ list_sensors ←─ fastapi_ready_endpoint
                      ├─ get_sensor_data
@@ -365,7 +365,7 @@ fastapi_running
 fastapi_health_endpoint
   ↓
 fastapi_ready_endpoint ───┐
-                          ├─→ list_sensors ←─ sensor_readings_table_exists
+                          ├─→ list_sensors ←─ analytics_data_table_exists
                           │      ↓
                           │   get_sensor_data
                           │      ↓
@@ -379,7 +379,7 @@ postgresql_running
   ↓
 postgresql_accepting_connections
   ↓
-sensor_readings_table_exists ───┬─→ message_to_postgresql
+analytics_data_table_exists ───┬─→ message_to_postgresql
                                 └─→ list_sensors
 ```---
 

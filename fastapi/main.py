@@ -336,7 +336,7 @@ async def list_all_sensors(limit: int = 50):
                         MIN(timestamp) AS first_reading,
                         MAX(timestamp) AS latest_reading,
                         COUNT(*) AS reading_count
-                    FROM sensor_readings
+                    FROM analytics_data
                     GROUP BY sensor_id
                     ORDER BY latest_reading DESC
                     LIMIT %s
@@ -391,7 +391,7 @@ async def get_sensor_data(
                 cur.execute(
                     """
                     SELECT sensor_id, timestamp, temperature, humidity
-                    FROM sensor_readings
+                    FROM analytics_data
                     WHERE sensor_id = %s
                       AND timestamp BETWEEN %s AND %s
                     ORDER BY timestamp DESC
@@ -452,7 +452,7 @@ async def get_sensor_stats(
                         MAX(humidity) AS humidity_max,
                         AVG(humidity) AS humidity_avg,
                         COUNT(*) AS reading_count
-                    FROM sensor_readings
+                    FROM analytics_data
                     WHERE sensor_id = %s
                       AND timestamp BETWEEN %s AND %s
                     GROUP BY sensor_id
@@ -524,7 +524,7 @@ async def root():
         "database": {
             "host": POSTGRES_HOST,
             "database": POSTGRES_DB,
-            "table": "sensor_readings"
+            "table": "analytics_data"
         }
     }
 

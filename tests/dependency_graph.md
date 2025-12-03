@@ -93,7 +93,7 @@ graph TB
         L1["kafka_topics_accessible"]
         L2["postgresql_sink_connector"]
         L3["connectivity_validated"]
-        L4["sensor_readings_table"]
+        L4["analytics_data_table"]
         L5["fastapi_ready_endpoint"]
     end
 

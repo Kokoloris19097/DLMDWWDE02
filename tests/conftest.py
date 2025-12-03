@@ -24,7 +24,7 @@ class TestConfig:
     API_NAMESPACE: str = "api"
     KAFKA_TOPIC: str = "analytics-data"
     POSTGRESQL_DB: str = "sensordata"
-    POSTGRESQL_TABLE: str = "sensor_readings"
+    POSTGRESQL_TABLE: str = "analytics_data"
     COMMAND_TIMEOUT: int = 30
     # Pod/Deployment names
     KAFKA_BROKER_POD: str = "kafka-broker-0"

@@ -130,9 +130,9 @@ try {
         Write-Host "  helm rollback $releaseName 0 --namespace default" -ForegroundColor Cyan
         exit 1
     }
-
+    start-sleep -Seconds 10 # Warten bis Pods bereit sind
     Write-Host "Running pytest..." -ForegroundColor Yellow
-    Push-Location ./tests
+    Set-Location "$scriptRoot/tests"
     pytest test_1_health.py -v --tb=short
 
     if ($LASTEXITCODE -ne 0) {

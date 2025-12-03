@@ -106,7 +106,7 @@ class TestPipelineEndToEnd:
             "postgresql_sink_connector_running",
             "connect_to_kafka_broker",
             "connect_to_postgresql",
-            "sensor_readings_table_exists"
+            "analytics_data_table_exists"
         ], scope="session"
     )
     def test_message_to_postgresql(
@@ -198,7 +198,7 @@ class TestFastAPIQueryEndpoints:
     @pytest.mark.functional
     @pytest.mark.dependency(
         name="list_sensors",
-        depends=["fastapi_ready_endpoint", "sensor_readings_table_exists"],
+        depends=["fastapi_ready_endpoint", "analytics_data_table_exists"],
         scope="session"
     )
     def test_list_sensors(self, fastapi_exec):

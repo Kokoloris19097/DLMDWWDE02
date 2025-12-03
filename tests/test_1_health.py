@@ -165,12 +165,12 @@ class TestPostgreSQLHealth:
 
     @pytest.mark.health
     @pytest.mark.dependency(
-        name="sensor_readings_table_exists",
+        name="analytics_data_table_exists",
         depends=["postgresql_accepting_connections"],
         scope="session"
     )
-    def test_sensor_readings_table_exists(self, postgres_exec):
-        """Verify sensor_readings table exists"""
+    def test_analytics_data_table_exists(self, postgres_exec):
+        """Verify analytics_data table exists"""
         success, output = postgres_exec(
             "psql -U postgres -d sensordata -t -c "
             "\"SELECT COUNT(*) FROM information_schema.tables WHERE table_name='analytics_data'\""

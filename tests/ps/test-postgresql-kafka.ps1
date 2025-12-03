@@ -99,7 +99,7 @@ try {
 
         Write-Host "  Prüfe PostgreSQL... ($elapsed/$timeoutSeconds s)" -ForegroundColor Gray
 
-        $query = "SELECT COUNT(*) FROM sensor_readings WHERE sensor_id = '$testId';"
+        $query = "SELECT COUNT(*) FROM analytics_data WHERE sensor_id = '$testId';"
         $result = kubectl exec postgresql-0 -n $dbNamespace -- psql -U postgres -d sensordata -t -c $query 2>$null
         $result = "$result".Trim()
 
@@ -117,7 +117,7 @@ try {
 
         # Zeige die Daten
         Write-Host "`nGespeicherte Daten:" -ForegroundColor Yellow
-        $selectQuery = "SELECT * FROM sensor_readings WHERE sensor_id = '$testId';"
+        $selectQuery = "SELECT * FROM analytics_data WHERE sensor_id = '$testId';"
         kubectl exec postgresql-0 -n $dbNamespace -- psql -U postgres -d sensordata -c $selectQuery
     } else {
         Write-Host "=== TEST FEHLGESCHLAGEN ===" -ForegroundColor Red
@@ -140,7 +140,7 @@ try {
         kubectl exec kafka-broker-0 -n $namespace -- /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server $bootstrapServer --topic $topic --from-beginning --max-messages 3 --timeout-ms 5000 2>$null
 
         Write-Host "`n  PostgreSQL Tabelle:" -ForegroundColor Gray
-        kubectl exec postgresql-0 -n $dbNamespace -- psql -U postgres -d sensordata -c "SELECT COUNT(*) FROM sensor_readings;"
+        kubectl exec postgresql-0 -n $dbNamespace -- psql -U postgres -d sensordata -c "SELECT COUNT(*) FROM analytics_data;"
 
         throw "Daten nicht in PostgreSQL angekommen"
     }

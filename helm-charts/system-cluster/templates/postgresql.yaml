@@ -102,6 +102,9 @@ data:
     set -e
 
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      -- =============================================================================
+      -- SECTION 1: Benutzer erstellen
+      -- =============================================================================
       DO \$\$
       BEGIN
         IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{{ .Values.postgresql.env.APP_USER }}') THEN
@@ -110,8 +113,12 @@ data:
       END
       \$\$;
 
+      -- Gebe Datenbankrechte an Anwendungsbenutzer
       GRANT ALL PRIVILEGES ON DATABASE $POSTGRES_DB TO {{ .Values.postgresql.env.APP_USER }};
 
+      -- =============================================================================
+      -- SECTION 2: Analytics-Tabelle erstellen
+      -- =============================================================================
       CREATE TABLE IF NOT EXISTS analytics_data (
         id BIGSERIAL PRIMARY KEY,
         sensor_id VARCHAR(50) NOT NULL,
@@ -121,9 +128,23 @@ data:
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      -- =============================================================================
+      -- SECTION 3: Indizes für Performance
+      -- =============================================================================
       CREATE INDEX IF NOT EXISTS idx_analytics_data_sensor_id ON analytics_data(sensor_id);
       CREATE INDEX IF NOT EXISTS idx_analytics_data_timestamp ON analytics_data(timestamp DESC);
 
+      -- =============================================================================
+      -- SECTION 4: Berechtigungen für Anwendungsbenutzer
+      -- =============================================================================
+      -- Gebe Zugriff auf public schema
+      GRANT USAGE ON SCHEMA public TO {{ .Values.postgresql.env.APP_USER }};
+
+      -- Gebe Rechte auf alle existierenden Tabellen
       GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {{ .Values.postgresql.env.APP_USER }};
       GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {{ .Values.postgresql.env.APP_USER }};
+
+      -- Setze Standard-Berechtigungen für zukünftig erstellte Tabellen
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO {{ .Values.postgresql.env.APP_USER }};
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO {{ .Values.postgresql.env.APP_USER }};
     EOSQL
