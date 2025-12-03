@@ -12,6 +12,8 @@ RUN apt-get update && \
         linux-headers-amd64 \
         libffi-dev \
         librdkafka-dev \
+        curl \
+        netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # Python Dependencies installieren

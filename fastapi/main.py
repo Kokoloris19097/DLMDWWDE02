@@ -1,17 +1,19 @@
 """
-FastAPI Ingestion Service - Data Engineering Master Project
-Empfängt Sensor-Daten via HTTP POST und schreibt in Kafka Topic
+FastAPI Ingestion & Output Service - Data Engineering Master Project
+Empfängt Sensor-Daten via HTTP POST und bietet Datenabfrage-Endpunkte
 """
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
-from confluent_kafka import Producer
-from confluent_kafka import KafkaException
+from confluent_kafka import Producer, KafkaException
 import json
 import logging
 import os
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Optional, List
 import uvicorn
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from contextlib import contextmanager
 
 # Logging konfigurieren
 logging.basicConfig(
@@ -20,17 +22,61 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Umgebungsvariablen
+# =============================================================================
+# UMGEBUNGSVARIABLEN
+# =============================================================================
+
+# Kafka
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka.messaging.svc.cluster.local:9092')
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'raw-data')
 SERVICE_NAME = os.getenv('SERVICE_NAME', 'fastapi')
 
+# PostgreSQL
+POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'postgresql.data.svc.cluster.local')
+POSTGRES_PORT = int(os.getenv('POSTGRES_PORT', 5432))
+POSTGRES_DB = os.getenv('POSTGRES_DB', 'sensordata')
+POSTGRES_USER = os.getenv('POSTGRES_USER', 'appuser')
+POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'appuser-secure-pw')
+
 # FastAPI App
 app = FastAPI(
-    title="Data Ingestion API",
-    description="Empfängt Sensor-Daten und schreibt in Kafka",
-    version="1.0.0"
+    title="Data Ingestion & Query API",
+    description="Empfängt Sensor-Daten und bietet Datenabfrage-Endpunkte",
+    version="2.0.0"
 )
+
+# =============================================================================
+# DATABASE CONNECTION MANAGEMENT
+# =============================================================================
+
+@contextmanager
+def get_db_connection():
+    """Context manager für PostgreSQL Verbindung"""
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            host=POSTGRES_HOST,
+            port=POSTGRES_PORT,
+            database=POSTGRES_DB,
+            user=POSTGRES_USER,
+            password=POSTGRES_PASSWORD,
+            connect_timeout=10
+        )
+        yield conn
+    except psycopg2.OperationalError as e:
+        logger.error(f"DB Verbindung fehlgeschlagen: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Datenbankverbindung nicht verfügbar"
+        )
+    finally:
+        if conn:
+            conn.close()
+
+
+# =============================================================================
+# KAFKA PRODUCER
+# =============================================================================
 
 def get_kafka_producer() -> Producer:
     """Erstellt oder gibt existierenden Confluent Kafka Producer zurück"""
@@ -94,12 +140,47 @@ class IngestionResponse(BaseModel):
     timestamp: datetime = Field(..., description="Server-Zeitstempel")
 
 
+# =============================================================================
+# OUTPUT MODELS (ABFRAGE)
+# =============================================================================
+
+class SensorReading(BaseModel):
+    """Einzelne Sensor-Messung"""
+    sensor_id: str
+    timestamp: datetime
+    temperature: float
+    humidity: float
+
+
+class SensorStats(BaseModel):
+    """Statistiken für einen Sensor"""
+    sensor_id: str
+    period_start: datetime
+    period_end: datetime
+    temperature_min: float
+    temperature_max: float
+    temperature_avg: float
+    humidity_min: float
+    humidity_max: float
+    humidity_avg: float
+    reading_count: int
+
+
+class SensorInfo(BaseModel):
+    """Sensor-Übersicht"""
+    sensor_id: str
+    first_reading: datetime
+    latest_reading: datetime
+    reading_count: int
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialisiert Kafka Producer beim App-Start"""
     logger.info(f"{SERVICE_NAME} startet...")
     logger.info(f"Kafka Bootstrap Servers: {KAFKA_BOOTSTRAP_SERVERS}")
     logger.info(f"Kafka Topic: {KAFKA_TOPIC}")
+    logger.info(f"PostgreSQL: {POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}")
 
     try:
         get_kafka_producer()
@@ -230,23 +311,220 @@ async def ingest_sensor_data(data: SensorData):
         )
 
 
+# =============================================================================
+# OUTPUT ENDPOINTS (ABFRAGE)
+# =============================================================================
+
+@app.get("/sensors", response_model=List[SensorInfo])
+async def list_all_sensors(limit: int = 50):
+    """
+    Liefert Übersicht aller Sensoren mit Statistiken
+
+    Query Parameter:
+    - limit: Maximal zu liefernde Sensoren (Default: 50, Max: 1000)
+    """
+    if limit < 1 or limit > 1000:
+        limit = 50
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        sensor_id,
+                        MIN(timestamp) AS first_reading,
+                        MAX(timestamp) AS latest_reading,
+                        COUNT(*) AS reading_count
+                    FROM analytics_data
+                    GROUP BY sensor_id
+                    ORDER BY latest_reading DESC
+                    LIMIT %s
+                    """,
+                    (limit,)
+                )
+                rows = cur.fetchall()
+
+        if not rows:
+            return []
+
+        return [SensorInfo(**row) for row in rows]
+
+    except Exception as e:
+        logger.error(f"Fehler beim Abrufen von Sensor-Übersicht: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Abrufen der Sensor-Übersicht"
+        )
+
+
+@app.get("/sensors/{sensor_id}/data", response_model=List[SensorReading])
+async def get_sensor_data(
+    sensor_id: str,
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+    limit: int = 100
+):
+    """
+    Liefert Zeitreihen-Daten eines Sensors
+
+    Path Parameter:
+    - sensor_id: Eindeutige Sensor-ID
+
+    Query Parameter:
+    - start: ISO-Timestamp (z.B. 2025-12-01T10:00:00), Default: 7 Tage zurück
+    - end: ISO-Timestamp, Default: jetzt
+    - limit: Max. Anzahl Datensätze (Default: 100, Max: 10000)
+    """
+    # Default: letzte 7 Tage
+    if not end:
+        end = datetime.utcnow()
+    if not start:
+        start = end - timedelta(days=7)
+
+    if limit < 1 or limit > 10000:
+        limit = 100
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT sensor_id, timestamp, temperature, humidity
+                    FROM analytics_data
+                    WHERE sensor_id = %s
+                      AND timestamp BETWEEN %s AND %s
+                    ORDER BY timestamp DESC
+                    LIMIT %s
+                    """,
+                    (sensor_id, start, end, limit)
+                )
+                rows = cur.fetchall()
+
+        if not rows:
+            logger.info(f"Keine Daten für Sensor {sensor_id} im Zeitfenster gefunden")
+            return []
+
+        return [SensorReading(**row) for row in rows]
+
+    except Exception as e:
+        logger.error(f"Fehler beim Abrufen von Sensor-Daten für {sensor_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Abrufen der Sensor-Daten"
+        )
+
+
+@app.get("/sensors/{sensor_id}/stats", response_model=SensorStats)
+async def get_sensor_stats(
+    sensor_id: str,
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None
+):
+    """
+    Liefert aggregierte Statistiken für einen Sensor
+
+    Path Parameter:
+    - sensor_id: Eindeutige Sensor-ID
+
+    Query Parameter:
+    - start: ISO-Timestamp, Default: 7 Tage zurück
+    - end: ISO-Timestamp, Default: jetzt
+
+    Liefert: min, max, avg für Temperatur und Luftfeuchtigkeit
+    """
+    if not end:
+        end = datetime.utcnow()
+    if not start:
+        start = end - timedelta(days=7)
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        sensor_id,
+                        MIN(temperature) AS temperature_min,
+                        MAX(temperature) AS temperature_max,
+                        AVG(temperature) AS temperature_avg,
+                        MIN(humidity) AS humidity_min,
+                        MAX(humidity) AS humidity_max,
+                        AVG(humidity) AS humidity_avg,
+                        COUNT(*) AS reading_count
+                    FROM analytics_data
+                    WHERE sensor_id = %s
+                      AND timestamp BETWEEN %s AND %s
+                    GROUP BY sensor_id
+                    """,
+                    (sensor_id, start, end)
+                )
+                row = cur.fetchone()
+
+        if not row:
+            logger.info(f"Keine Daten für Sensor {sensor_id} im Zeitfenster gefunden")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Keine Statistiken für Sensor {sensor_id} gefunden"
+            )
+
+        # Konvertiere float-Werte sauber
+        return SensorStats(
+            sensor_id=row['sensor_id'],
+            period_start=start,
+            period_end=end,
+            temperature_min=float(row['temperature_min']) if row['temperature_min'] else 0.0,
+            temperature_max=float(row['temperature_max']) if row['temperature_max'] else 0.0,
+            temperature_avg=float(row['temperature_avg']) if row['temperature_avg'] else 0.0,
+            humidity_min=float(row['humidity_min']) if row['humidity_min'] else 0.0,
+            humidity_max=float(row['humidity_max']) if row['humidity_max'] else 0.0,
+            humidity_avg=float(row['humidity_avg']) if row['humidity_avg'] else 0.0,
+            reading_count=int(row['reading_count']) if row['reading_count'] else 0
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Fehler beim Abrufen von Statistiken für {sensor_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Abrufen der Statistiken"
+        )
+
+
 @app.get("/")
 async def root():
     """Root Endpoint mit API-Informationen"""
     return {
         "service": SERVICE_NAME,
-        "version": "1.0.0",
-        "description": "Data Ingestion API für Sensor-Daten",
+        "version": "2.0.0",
+        "description": "Data Ingestion & Query API für Sensor-Daten",
         "endpoints": {
-            "POST /ingest": "Sensor-Daten aufnehmen",
-            "GET /health": "Health Check",
-            "GET /ready": "Readiness Check",
-            "GET /docs": "API Dokumentation (Swagger UI)",
-            "GET /redoc": "API Dokumentation (ReDoc)"
+            "Ingestion": {
+                "POST /ingest": "Sensor-Daten aufnehmen"
+            },
+            "Query": {
+                "GET /sensors": "Übersicht aller Sensoren",
+                "GET /sensors/{sensor_id}/data": "Zeitreihen-Daten",
+                "GET /sensors/{sensor_id}/stats": "Aggregierte Statistiken"
+            },
+            "Health": {
+                "GET /health": "Health Check",
+                "GET /ready": "Readiness Check"
+            },
+            "Documentation": {
+                "GET /docs": "Swagger UI",
+                "GET /redoc": "ReDoc"
+            }
         },
         "kafka": {
             "bootstrap_servers": KAFKA_BOOTSTRAP_SERVERS,
             "topic": KAFKA_TOPIC
+        },
+        "database": {
+            "host": POSTGRES_HOST,
+            "database": POSTGRES_DB,
+            "table": "analytics_data"
         }
     }
 

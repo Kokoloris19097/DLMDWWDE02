@@ -29,12 +29,24 @@ spec:
           containerPort: 8000
           protocol: TCP
         env:
+        # Kafka Configuration
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: {{ .Values.fastapi.env.kafkaBootstrapServers | quote }}
         - name: KAFKA_TOPIC
           value: {{ .Values.fastapi.env.kafkaTopic | quote }}
         - name: SERVICE_NAME
           value: "fastapi"
+        # PostgreSQL Configuration
+        - name: POSTGRES_HOST
+          value: "postgresql.{{ .Values.postgresql.namespace }}.svc.cluster.local"
+        - name: POSTGRES_PORT
+          value: {{ .Values.postgresql.service.port | quote }}
+        - name: POSTGRES_DB
+          value: {{ .Values.postgresql.env.POSTGRES_DB | quote }}
+        - name: POSTGRES_USER
+          value: {{ .Values.postgresql.env.APP_USER | quote }}
+        - name: POSTGRES_PASSWORD
+          value: {{ .Values.postgresql.env.APP_PASSWORD | quote }}
         resources:
           limits:
             cpu: {{ .Values.fastapi.resources.limits.cpu }}

@@ -2,11 +2,14 @@
 $releaseName = "system-cluster"
 $chartPath = "helm-charts\$releaseName"
 $global:update_starttime = Get-Date
-$scriptRoot = $PSScriptRoot  # Einmal am Anfang speichern
+$scriptRoot = $PSScriptRoot
+$env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 
 Write-Host "Helm Chart Update" -ForegroundColor Green
-$updateFastAPI = $(Read-Host -Prompt "Möchten Sie das FastAPI Image aktualisieren? (J/N)") -eq "J"
-$updatePostgresConnector = $(Read-Host -Prompt "Möchten Sie das Postgres Connector Image aktualisieren? (J/N)") -eq "J"
+Write-Host "Welche Images möchten Sie aktualisieren? (J/N)" -ForegroundColor Cyan
+$updateFastAPI = $(Read-Host -Prompt "  [1] FastAPI") -eq "J"
+$updatePostgresConnector = $(Read-Host -Prompt "  [2] Postgres Connector") -eq "J"
+$updateSpark = $(Read-Host -Prompt "  [3] Spark") -eq "J"
 
 try {
     Set-Location $scriptRoot  # Starte immer vom Script-Verzeichnis
@@ -80,6 +83,26 @@ try {
         }
     }
 
+    if (-not $updateSpark) {
+        Write-Host "[2.3/4] Überspringe Spark Update." -ForegroundColor Yellow
+    } else {
+        Write-Host "[2.3/4] Baue Spark Image..." -ForegroundColor Yellow
+        Set-Location $scriptRoot  # Zurück zum Root
+
+        $deployScript = Join-Path $scriptRoot "spark\deploy-spark.ps1"
+        if (Test-Path $deployScript) {
+            & $deployScript -noHelm
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Spark Deployment fehlgeschlagen!" -ForegroundColor Red
+                exit 1
+            }
+        } else {
+            Write-Warning "$deployScript nicht gefunden."
+        }
+
+        Push-Location $chartPath  # Zurück zum Chart-Verzeichnis
+    }
+
     # Zurück zum Chart-Verzeichnis
     Set-Location $absoluteChartPath
 
@@ -107,6 +130,16 @@ try {
         Write-Host "  helm rollback $releaseName 0 --namespace default" -ForegroundColor Cyan
         exit 1
     }
+    start-sleep -Seconds 10 # Warten bis Pods bereit sind
+    Write-Host "Running pytest..." -ForegroundColor Yellow
+    Set-Location "$scriptRoot/tests"
+    pytest test_1_health.py -v --tb=short
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Tests fehlgeschlagen!"
+        exit 1
+    }
+
 
     # Prüfe auf nicht-running Pods und gebe deren Logs aus
     try {

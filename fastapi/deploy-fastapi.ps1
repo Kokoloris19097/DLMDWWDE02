@@ -1,4 +1,4 @@
-# FastAPI - Build & Deploy Script
+﻿# FastAPI - Build & Deploy Script
 # DLMDWWDE02 Master Project
 param (
     [switch]$noHelm
@@ -9,7 +9,9 @@ $IMAGE_TAG = "latest"
 $LOCAL_IMAGE = "localhost/${IMAGE_NAME}:${IMAGE_TAG}"
 $CLUSTER_NAME = "system-cluster"
 $HELM_RELEASE = "system-cluster"
+$env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 $global:starttime = Get-Date
+
 function Write-Log {
     param (
         [string]$LEVEL = "INFO",

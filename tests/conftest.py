@@ -10,6 +10,7 @@ import uuid
 import shlex
 from dataclasses import dataclass
 from typing import Tuple, Callable
+from datetime import datetime
 
 
 # =============================================================================
@@ -21,15 +22,17 @@ class TestConfig:
     """Immutable test configuration"""
     MESSAGING_NAMESPACE: str = "messaging"
     DATA_NAMESPACE: str = "data"
+    API_NAMESPACE: str = "api"
     KAFKA_TOPIC: str = "analytics-data"
     POSTGRESQL_DB: str = "sensordata"
-    POSTGRESQL_TABLE: str = "sensor_readings"
+    POSTGRESQL_TABLE: str = "analytics_data"
     COMMAND_TIMEOUT: int = 30
     # Pod/Deployment names
     KAFKA_BROKER_POD: str = "kafka-broker-0"
     POSTGRESQL_POD: str = "postgresql-0"
     # Deployment label selectors (for pods without fixed names)
     KAFKA_CONNECT_SELECTOR: str = "app=kafka-connect"
+    FASTAPI_SELECTOR: str = "app=fastapi"
 
 
 @pytest.fixture(scope="session")
@@ -69,7 +72,6 @@ def run_kubectl_exec(
 ) -> Tuple[bool, str]:
     """
     Execute command in a pod.
-
     Args:
         namespace: Kubernetes namespace
         pod: Pod name or selector (if starts with 'selector=')
@@ -79,7 +81,6 @@ def run_kubectl_exec(
     """
     # Build base kubectl command
     args = ["-n", namespace, "exec"]
-
     # Handle deployment selector vs direct pod name
     if pod.startswith("selector="):
         selector = pod.replace("selector=", "")
@@ -95,9 +96,7 @@ def run_kubectl_exec(
         args.append(pod_name)
     else:
         args.append(pod)
-
     args.append("--")
-
     # Handle command execution
     if use_shell:
         args.extend(["sh", "-c", command])
@@ -108,7 +107,6 @@ def run_kubectl_exec(
         except ValueError:
             # Fallback to shell execution if shlex fails
             args.extend(["sh", "-c", command])
-
     return run_kubectl(args, timeout)
 
 
@@ -170,6 +168,41 @@ def postgres_exec(config) -> Callable[[str], Tuple[bool, str]]:
     return execute
 
 
+@pytest.fixture(scope="session")
+def fastapi_exec(config) -> Callable[[str], Tuple[bool, str]]:
+    """Execute command in fastapi pod (found via selector)"""
+    def execute(command: str) -> Tuple[bool, str]:
+        # Try to find pod by selector
+        get_pod_args = [
+            "-n", config.API_NAMESPACE, "get", "pod",
+            "-l", config.FASTAPI_SELECTOR,
+            "-o", "jsonpath={.items[0].metadata.name}"
+        ]
+        success, pod_name = run_kubectl(get_pod_args, config.COMMAND_TIMEOUT)
+        # Clean up pod_name - handle empty strings and whitespace
+        if pod_name:
+            pod_name = pod_name.strip()
+        if not success or not pod_name:
+            # Fallback: Try to get any pod in api namespace
+            get_pod_args = [
+                "-n", config.API_NAMESPACE, "get", "pod",
+                "-o", "jsonpath={.items[0].metadata.name}"
+            ]
+            success, pod_name = run_kubectl(get_pod_args, config.COMMAND_TIMEOUT)
+            if pod_name:
+                pod_name = pod_name.strip()
+            if not success or not pod_name:
+                return False, f"No FastAPI pod found in {config.API_NAMESPACE} namespace"
+        return run_kubectl_exec(
+            config.API_NAMESPACE,
+            pod_name,
+            command,
+            config.COMMAND_TIMEOUT,
+            use_shell=True
+        )
+    return execute
+
+
 # =============================================================================
 # POD STATUS HELPERS
 # =============================================================================
@@ -221,21 +254,23 @@ def get_endpoints(config) -> Callable:
 def test_message():
     """Generate unique test message for pipeline tests"""
     test_id = f"test-{uuid.uuid4().hex[:8]}"
+    # Use current timestamp to ensure test data falls within default query ranges (last 7 days)
+    current_timestamp_ms = int(datetime.now().timestamp() * 1000)
     message = json.dumps({
         "schema": {
             "type": "struct",
             "fields": [
                 {"field": "sensor_id", "type": "string"},
                 {"field": "temperature", "type": "double"},
-                {"field": "humidity", "type": "int32"},
+                {"field": "humidity", "type": "double"},
                 {"field": "timestamp", "type": "int64", "name": "org.apache.kafka.connect.data.Timestamp"}
             ]
         },
         "payload": {
             "sensor_id": test_id,
             "temperature": 22.5,
-            "humidity": 55,
-            "timestamp": 1699000000000
+            "humidity": 55.0,
+            "timestamp": current_timestamp_ms
         }
     })
     return {"id": test_id, "message": message}

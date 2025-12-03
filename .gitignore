@@ -63,3 +63,4 @@ helm-charts/**/charts/*.tgz
 *.lock
 
 .github/*
+.coverage

@@ -9,6 +9,7 @@ $TAR_NAME = "postgres-connector-image.tar"
 $CLUSTER_NAME = "system-cluster"
 $global:starttime = Get-Date
 $scriptRoot = $PSScriptRoot
+$env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 
 function Write-Log {
     param ([string]$Level = "INFO", [string]$Message)
