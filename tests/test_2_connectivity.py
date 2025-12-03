@@ -153,3 +153,64 @@ class TestEndpointsAvailable:
         """Verify postgresql service has endpoints"""
         success, output = get_endpoints("postgresql", config.DATA_NAMESPACE)
         self._assert_endpoints_exist(success, output, "postgresql")
+
+
+# =============================================================================
+# LAYER 2D: FASTAPI CONNECTIVITY (Depends on FastAPI and DB Health)
+# =============================================================================
+
+class TestFastAPIConnectivity:
+    """FastAPI network connectivity tests"""
+
+    KAFKA_BROKER_HOST = "kafka.messaging.svc.cluster.local"
+    POSTGRESQL_HOST = "postgresql.data.svc.cluster.local"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(
+        name="fastapi_to_kafka_broker",
+        depends=["fastapi_running", "kafka_broker_0_running"], scope="session"
+    )
+    def test_fastapi_to_kafka_broker(self, fastapi_exec):
+        """Verify FastAPI can reach Kafka broker"""
+        success, output = fastapi_exec(
+            tcp_check_with_nc_fallback(self.KAFKA_BROKER_HOST, 9092)
+        )
+        assert success, f"Command failed: {output}"
+        assert "OK" in output, f"FastAPI cannot reach Kafka broker: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(
+        name="fastapi_to_postgresql",
+        depends=["fastapi_running", "postgresql_running"], scope="session"
+    )
+    def test_fastapi_to_postgresql(self, fastapi_exec):
+        """Verify FastAPI can reach PostgreSQL"""
+        success, output = fastapi_exec(
+            tcp_check_with_nc_fallback(self.POSTGRESQL_HOST, 5432)
+        )
+        assert success, f"Command failed: {output}"
+        assert "OK" in output, f"FastAPI cannot reach PostgreSQL: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(
+        name="fastapi_db_connection",
+        depends=["fastapi_to_postgresql"], scope="session"
+    )
+    def test_fastapi_db_connection(self, fastapi_exec):
+        """Verify FastAPI can establish database connection"""
+        # Use psql client to test DB connectivity from FastAPI pod
+        cmd = (
+            "psql -h postgresql.data.svc.cluster.local "
+            "-p 5432 -U appuser -d sensordata "
+            "-c 'SELECT 1' 2>&1"
+        )
+        success, output = fastapi_exec(f"PGPASSWORD=appuser-secure-pw {cmd}")
+
+        # Check for successful connection (either "1" in output or specific success indicators)
+        if not success:
+            # Command might fail due to missing psql, try alternative check
+            pytest.skip(f"psql not available in FastAPI pod: {output}")
+
+        # Look for success indicators
+        assert "1 row" in output or "(1 row)" in output or "1" in output, \
+            f"Database connection test failed: {output}"

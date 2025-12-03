@@ -173,7 +173,7 @@ class TestPostgreSQLHealth:
         """Verify sensor_readings table exists"""
         success, output = postgres_exec(
             "psql -U postgres -d sensordata -t -c "
-            "\"SELECT COUNT(*) FROM information_schema.tables WHERE table_name='sensor_readings'\""
+            "\"SELECT COUNT(*) FROM information_schema.tables WHERE table_name='analytics_data'\""
         )
         assert success, f"Failed to query tables: {output}"
-        assert "1" in output, f"sensor_readings table not found: {output}"
+        assert "1" in output, f"analytics_data table not found: {output}"

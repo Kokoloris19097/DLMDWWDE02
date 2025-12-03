@@ -21,6 +21,7 @@ class TestConfig:
     """Immutable test configuration"""
     MESSAGING_NAMESPACE: str = "messaging"
     DATA_NAMESPACE: str = "data"
+    API_NAMESPACE: str = "api"
     KAFKA_TOPIC: str = "analytics-data"
     POSTGRESQL_DB: str = "sensordata"
     POSTGRESQL_TABLE: str = "sensor_readings"
@@ -30,6 +31,7 @@ class TestConfig:
     POSTGRESQL_POD: str = "postgresql-0"
     # Deployment label selectors (for pods without fixed names)
     KAFKA_CONNECT_SELECTOR: str = "app=kafka-connect"
+    FASTAPI_SELECTOR: str = "app=fastapi"
 
 
 @pytest.fixture(scope="session")
@@ -69,7 +71,6 @@ def run_kubectl_exec(
 ) -> Tuple[bool, str]:
     """
     Execute command in a pod.
-
     Args:
         namespace: Kubernetes namespace
         pod: Pod name or selector (if starts with 'selector=')
@@ -79,7 +80,6 @@ def run_kubectl_exec(
     """
     # Build base kubectl command
     args = ["-n", namespace, "exec"]
-
     # Handle deployment selector vs direct pod name
     if pod.startswith("selector="):
         selector = pod.replace("selector=", "")
@@ -95,9 +95,7 @@ def run_kubectl_exec(
         args.append(pod_name)
     else:
         args.append(pod)
-
     args.append("--")
-
     # Handle command execution
     if use_shell:
         args.extend(["sh", "-c", command])
@@ -108,7 +106,6 @@ def run_kubectl_exec(
         except ValueError:
             # Fallback to shell execution if shlex fails
             args.extend(["sh", "-c", command])
-
     return run_kubectl(args, timeout)
 
 
@@ -163,6 +160,41 @@ def postgres_exec(config) -> Callable[[str], Tuple[bool, str]]:
         return run_kubectl_exec(
             config.DATA_NAMESPACE,
             config.POSTGRESQL_POD,
+            command,
+            config.COMMAND_TIMEOUT,
+            use_shell=True
+        )
+    return execute
+
+
+@pytest.fixture(scope="session")
+def fastapi_exec(config) -> Callable[[str], Tuple[bool, str]]:
+    """Execute command in fastapi pod (found via selector)"""
+    def execute(command: str) -> Tuple[bool, str]:
+        # Try to find pod by selector
+        get_pod_args = [
+            "-n", config.API_NAMESPACE, "get", "pod",
+            "-l", config.FASTAPI_SELECTOR,
+            "-o", "jsonpath={.items[0].metadata.name}"
+        ]
+        success, pod_name = run_kubectl(get_pod_args, config.COMMAND_TIMEOUT)
+        # Clean up pod_name - handle empty strings and whitespace
+        if pod_name:
+            pod_name = pod_name.strip()
+        if not success or not pod_name:
+            # Fallback: Try to get any pod in api namespace
+            get_pod_args = [
+                "-n", config.API_NAMESPACE, "get", "pod",
+                "-o", "jsonpath={.items[0].metadata.name}"
+            ]
+            success, pod_name = run_kubectl(get_pod_args, config.COMMAND_TIMEOUT)
+            if pod_name:
+                pod_name = pod_name.strip()
+            if not success or not pod_name:
+                return False, f"No FastAPI pod found in {config.API_NAMESPACE} namespace"
+        return run_kubectl_exec(
+            config.API_NAMESPACE,
+            pod_name,
             command,
             config.COMMAND_TIMEOUT,
             use_shell=True
