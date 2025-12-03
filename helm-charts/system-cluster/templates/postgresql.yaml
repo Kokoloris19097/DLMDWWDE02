@@ -104,15 +104,15 @@ data:
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
       DO \$\$
       BEGIN
-        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$APP_USER') THEN
-          CREATE USER $APP_USER WITH PASSWORD '$APP_PASSWORD';
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{{ .Values.postgresql.env.APP_USER }}') THEN
+          CREATE USER {{ .Values.postgresql.env.APP_USER }} WITH PASSWORD '{{ .Values.postgresql.env.APP_PASSWORD }}';
         END IF;
       END
       \$\$;
 
-      GRANT ALL PRIVILEGES ON DATABASE $POSTGRES_DB TO $APP_USER;
+      GRANT ALL PRIVILEGES ON DATABASE $POSTGRES_DB TO {{ .Values.postgresql.env.APP_USER }};
 
-      CREATE TABLE IF NOT EXISTS sensor_readings (
+      CREATE TABLE IF NOT EXISTS analytics_data (
         id BIGSERIAL PRIMARY KEY,
         sensor_id VARCHAR(50) NOT NULL,
         timestamp TIMESTAMPTZ NOT NULL,
@@ -124,6 +124,6 @@ data:
       CREATE INDEX IF NOT EXISTS idx_sensor_readings_sensor_id ON sensor_readings(sensor_id);
       CREATE INDEX IF NOT EXISTS idx_sensor_readings_timestamp ON sensor_readings(timestamp DESC);
 
-      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $APP_USER;
-      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $APP_USER;
+      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {{ .Values.postgresql.env.APP_USER }};
+      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {{ .Values.postgresql.env.APP_USER }};
     EOSQL

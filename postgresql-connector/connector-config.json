@@ -10,7 +10,7 @@
     "insert.mode": "insert",
     "auto.create": "false",
     "auto.evolve": "false",
-    "table.name.format": "sensor_readings",
+    "table.name.format": "analytics_data",
     "pk.mode": "none",
     "delete.enabled": "false",
     "fields.whitelist": "sensor_id,timestamp,temperature,humidity",
