@@ -144,6 +144,10 @@ data:
       GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {{ .Values.postgresql.env.APP_USER }};
       GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {{ .Values.postgresql.env.APP_USER }};
 
+      -- Explizite Berechtigungen für analytics_data Tabelle und Sequence
+      GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE analytics_data TO {{ .Values.postgresql.env.APP_USER }};
+      GRANT USAGE, SELECT ON SEQUENCE analytics_data_id_seq TO {{ .Values.postgresql.env.APP_USER }};
+
       -- Setze Standard-Berechtigungen für zukünftig erstellte Tabellen
       ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO {{ .Values.postgresql.env.APP_USER }};
       ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO {{ .Values.postgresql.env.APP_USER }};
