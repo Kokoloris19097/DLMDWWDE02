@@ -307,6 +307,39 @@ try {
         Write-Log "ERROR" "Upgrade fehlgeschlagen!"
         Write-Log "WARN" "Rollback verfügbar mit:"
         Write-Log "DEBUG" "  helm rollback $releaseName 0 --namespace default"
+        Write-Log "INFO" "Pods mit Status ungleich 'Running':"
+        # Filtere Pods, bei denen mindestens ein Container nicht im Status 'running' ist
+        $pods = (kubectl get pods -A -o json | ConvertFrom-Json).items
+        $nonRunning = @()
+        foreach ($pod in $pods) {
+            if ($pod.status -and $pod.status.containerStatuses) {
+                foreach ($container in $pod.status.containerStatuses) {
+                    $stateName = $container.state.PSObject.Properties.Name
+                    if ($stateName -ne 'running') {
+                        $reason = $null
+                        if ($container.state.$stateName -and $container.state.$stateName.reason) {
+                            $reason = $container.state.$stateName.reason
+                        } elseif ($container.state.$stateName -and $container.state.$stateName.message) {
+                            $reason = $container.state.$stateName.message
+                        } else {
+                            $reason = $stateName
+                        }
+                        $nonRunning += [PSCustomObject]@{
+                            Namespace = $pod.metadata.namespace
+                            Name      = $pod.metadata.name
+                            Phase     = $pod.status.phase
+                            Status    = $stateName
+                            Reason    = $reason
+                        }
+                    }
+                }
+            }
+        }
+        if ($nonRunningPods) {
+            $nonRunning | Format-Table -AutoSize
+        } else {
+            Write-Log "SUCCESS" "Alle Pods sind im Status 'Running'."
+        }
         exit 1
     }
 
