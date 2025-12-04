@@ -5,7 +5,15 @@ $global:update_starttime = Get-Date
 $scriptRoot = $PSScriptRoot
 $env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 
-Write-Host "Helm Chart Update" -ForegroundColor Green
+function Write-Log {
+    param ([string]$Level = "INFO", [string]$Message)
+    $colors = @{ "INFO" = "Yellow"; "DEBUG" = "Cyan"; "SUCCESS" = "Green"; "WARN" = "Magenta"; "ERROR" = "Red" }
+    $delay = ((Get-Date) - $update_starttime).TotalSeconds.ToString("F2")
+    Write-Host "[update $delay s] $Message" -ForegroundColor $colors[$Level]
+}
+
+
+Write-Log "INFO" "Helm Chart Update"
 Write-Host "Welche Images möchten Sie aktualisieren? (J/N)" -ForegroundColor Cyan
 $updateFastAPI = $(Read-Host -Prompt "  [1] FastAPI") -eq "J"
 $updatePostgresConnector = $(Read-Host -Prompt "  [2] Postgres Connector") -eq "J"
@@ -14,90 +22,261 @@ $updateSpark = $(Read-Host -Prompt "  [3] Spark") -eq "J"
 try {
     Set-Location $scriptRoot  # Starte immer vom Script-Verzeichnis
 
+    # 0. Podman und Cluster prüfen/starten
+    Write-Log "INFO" "[0/5] Prüfe Podman und Cluster..."
+
+    # 0.1 Podman Machine prüfen
+    Write-Log "DEBUG" "  Prüfe Podman Machine Status..."
+    $podmanMachineRunning = $false
+    try {
+        $machineList = podman machine list --format json 2>$null | ConvertFrom-Json
+        if ($machineList) {
+            $runningMachine = $machineList | Where-Object { $_.Running -eq $true }
+            if ($runningMachine) {
+                $podmanMachineRunning = $true
+                Write-Log "SUCCESS" "  Podman Machine läuft bereits ($($runningMachine.Name))"
+            } else {
+                Write-Log "WARN" "  Podman Machine existiert, läuft aber nicht"
+                $defaultMachine = $machineList | Select-Object -First 1
+                if ($defaultMachine) {
+                    Write-Log "DEBUG" "  Starte Podman Machine '$($defaultMachine.Name)'..."
+                    podman machine start $defaultMachine.Name
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Log "SUCCESS" "  Podman Machine gestartet"
+                        $podmanMachineRunning = $true
+                        Start-Sleep -Seconds 5  # Warte kurz, bis Machine vollständig hochgefahren ist
+                    } else {
+                        Write-Log "ERROR" "  Podman Machine konnte nicht gestartet werden!"
+                        exit 1
+                    }
+                }
+            }
+        } else {
+            Write-Log "WARN" "  Keine Podman Machine gefunden"
+        }
+    } catch {
+        Write-Log "WARN" "  Fehler beim Prüfen von Podman: $_"
+    }
+
+    if (-not $podmanMachineRunning) {
+        Write-Log "ERROR" "Podman Machine läuft nicht und konnte nicht gestartet werden!"
+        exit 1
+    }
+
+    # 0.2 Kind Cluster prüfen
+    Write-Log "DEBUG" "  Prüfe Kind Cluster Status..."
+    $clusterExists = kind get clusters 2>$null | Select-String -Pattern "^$releaseName$"
+
+    if (-not $clusterExists) {
+        Write-Log "ERROR" "Cluster '$releaseName' existiert nicht!"
+        exit 1
+    }
+
+    Write-Log "SUCCESS" "  Cluster '$releaseName' existiert"
+
+    # 0.3 Cluster Erreichbarkeit prüfen
+    Write-Log "DEBUG" "  Prüfe Cluster Erreichbarkeit..."
+    kubectl cluster-info --context kind-$releaseName 2>$null | Out-Null
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "WARN" "  Cluster nicht erreichbar, versuche Container zu starten..."
+
+        # Prüfe ob der Cluster-Container existiert und starte ihn
+        $clusterContainerName = "$releaseName-control-plane"
+        $containerStatus = podman ps -a --filter "name=^${clusterContainerName}$" --format "{{.Status}}"
+
+        if ($containerStatus) {
+            Write-Log "DEBUG" "  Container Status: $containerStatus"
+
+            # Prüfe ob Container bereits läuft
+            if ($containerStatus -match "^Up") {
+                Write-Log "DEBUG" "  Container läuft bereits, prüfe Kubernetes API..."
+
+                # Warte bis Kubernetes API verfügbar ist (max 30 Sekunden)
+                $maxRetries = 6
+                $retryCount = 0
+                $clusterReady = $false
+
+                while ($retryCount -lt $maxRetries -and -not $clusterReady) {
+                    Start-Sleep -Seconds 5
+                    $retryCount++
+                    Write-Log "DEBUG" "  Warte auf Kubernetes API (Versuch $retryCount/$maxRetries)..."
+
+                    kubectl cluster-info --context kind-$releaseName 2>$null | Out-Null
+                    if ($LASTEXITCODE -eq 0) {
+                        $clusterReady = $true
+                        Write-Log "SUCCESS" "  Kubernetes API ist bereit"
+                    }
+                }
+
+                if (-not $clusterReady) {
+                    Write-Log "ERROR" "  Kubernetes API reagiert nicht nach $($maxRetries * 5) Sekunden!"
+                    Write-Log "WARN" "  Versuche Container Neustart..."
+
+                    podman restart $clusterContainerName | Out-Null
+                    Start-Sleep -Seconds 15
+
+                    kubectl cluster-info --context kind-$releaseName 2>$null | Out-Null
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Log "ERROR" "  Cluster nicht verfügbar nach Neustart!"
+                        Write-Log "WARN" "  Bitte init.ps1 ausführen oder manuell prüfen."
+                        exit 1
+                    }
+                    Write-Log "SUCCESS" "  Cluster nach Neustart erreichbar"
+                }
+            } else {
+                # Container ist gestoppt, starte ihn
+                Write-Log "DEBUG" "  Starte gestoppten Container '$clusterContainerName'..."
+                podman start $clusterContainerName | Out-Null
+
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Log "WARN" "  Container konnte nicht gestartet werden! Versuche Neustart..."
+                    podman restart $clusterContainerName | Out-Null
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Log "ERROR" "  Neustart des Containers fehlgeschlagen!"
+                        Write-Log "WARN" "  Prüfe Podman Logs mit: podman logs $clusterContainerName"
+                        Write-Log "WARN" "  Möglicherweise ist der Container beschädigt. Entferne ihn ggf. manuell mit: podman rm $clusterContainerName"
+                        Write-Log "WARN" "  Danach führe init.ps1 aus, um das Cluster neu zu erstellen."
+                        exit 1
+                    } else {
+                        Write-Log "SUCCESS" "  Container erfolgreich neugestartet, warte auf Kubernetes API..."
+                    }
+                } else {
+                    Write-Log "SUCCESS" "  Container gestartet, warte auf Kubernetes API..."
+                }
+
+                # Warte mit Retry-Logik bis Cluster vollständig hochgefahren ist
+                $maxRetries = 12
+                $retryCount = 0
+                $clusterReady = $false
+
+                while ($retryCount -lt $maxRetries -and -not $clusterReady) {
+                    Start-Sleep -Seconds 5
+                    $retryCount++
+                    Write-Log "DEBUG" "  Warte auf Cluster (Versuch $retryCount/$maxRetries)..."
+
+                    kubectl cluster-info --context kind-$releaseName 2>$null | Out-Null
+                    if ($LASTEXITCODE -eq 0) {
+                        $clusterReady = $true
+                        Write-Log "SUCCESS" "  Cluster erfolgreich gestartet und erreichbar"
+
+                        # Zusätzliche Prüfung: Warte bis Core-Pods ready sind
+                        Write-Log "DEBUG" "  Prüfe Core-System Pods..."
+                        Start-Sleep -Seconds 5
+                        $corePods = kubectl get pods -n kube-system -o json 2>$null | ConvertFrom-Json
+                        if ($corePods.items) {
+                            $notReadyPods = $corePods.items | Where-Object {
+                                $_.status.phase -ne 'Running' -or
+                                ($_.status.containerStatuses | Where-Object { $_.ready -eq $false })
+                            }
+                            if ($notReadyPods.Count -gt 0) {
+                                Write-Log "WARN" "  Einige System-Pods sind noch nicht ready, warte weitere 10 Sekunden..."
+                                Start-Sleep -Seconds 10
+                            }
+                        }
+                    }
+                }
+
+                if (-not $clusterReady) {
+                    Write-Log "ERROR" "  Cluster ist nach $($maxRetries * 5) Sekunden nicht bereit!"
+                    Write-Log "WARN" "  Prüfe Container Logs: podman logs $clusterContainerName"
+                    Write-Log "WARN" "  Oder führe init.ps1 aus um Cluster neu zu erstellen."
+                    exit 1
+                }
+            }
+        } else {
+            Write-Log "ERROR" "  Cluster Container '$clusterContainerName' nicht gefunden!"
+            Write-Log "WARN" "  Bitte init.ps1 ausführen um den Cluster neu zu erstellen."
+            exit 1
+        }
+    } else {
+        Write-Log "SUCCESS" "  Cluster ist erreichbar"
+    }
+
     # 1. Kontext prüfen
-    Write-Host "[1/4] Prüfe Kubernetes Kontext..." -ForegroundColor Yellow
+    Write-Log "INFO" "[1/5] Prüfe Kubernetes Kontext..."
     $currentContext = kubectl config current-context
-    Write-Host "  Aktueller Kontext: $currentContext" -ForegroundColor Cyan
+    Write-Log "DEBUG" "  Aktueller Kontext: $currentContext"
 
     if ($currentContext -ne "kind-$releaseName") {
-        Write-Warning "Kontext ist nicht 'kind-$releaseName'. Fortfahren? (J/N)"
+        Write-Log "WARN" "Kontext ist nicht 'kind-$releaseName'. Fortfahren? (J/N)"
         $response = Read-Host
         if ($response -ne "J" -and $response -ne "j") {
-            Write-Host "Abgebrochen." -ForegroundColor Red
+            Write-Log "ERROR" "Abgebrochen."
             exit 0
         }
     }
 
     # 2. Chart validieren
-    Write-Host "[2/4] Validiere Helm Chart..." -ForegroundColor Yellow
+    Write-Log "INFO" "[2/5] Validiere Helm Chart..."
     $absoluteChartPath = Join-Path $scriptRoot $chartPath
     Set-Location $absoluteChartPath
 
     # Dependencies aktualisieren
-    Write-Host "Lade Chart Dependencies..." -ForegroundColor Cyan
+    Write-Log "DEBUG" "  Lade Chart Dependencies..."
     helm dependency update
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Dependency Update fehlgeschlagen!"
+        Write-Log "ERROR" "Dependency Update fehlgeschlagen!"
         exit 1
     }
 
     helm lint .
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Chart hat Fehler! Bitte korrigieren."
+        Write-Log "ERROR" "Chart hat Fehler! Bitte korrigieren."
         exit 1
     }
-    Write-Host "Chart valide" -ForegroundColor Green
+    Write-Log "SUCCESS" "Chart valide"
 
     # 2.1 FastAPI Deployment
     if (-not $updateFastAPI) {
-        Write-Host "[2.1/4] Überspringe FastAPI Update." -ForegroundColor Yellow
+        Write-Log "INFO" "[2.1/5] Überspringe FastAPI Update."
     } else {
-        Write-Host "[2.1/4] Deploye FastAPI..." -ForegroundColor Yellow
+        Write-Log "INFO" "[2.1/5] Deploye FastAPI..."
         Set-Location $scriptRoot  # Zurück zum Root
         $deployScript = Join-Path $scriptRoot "fastapi\deploy-fastapi.ps1"
         if (Test-Path $deployScript) {
             & $deployScript
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "FastAPI Deployment fehlgeschlagen. Fahre ohne FastAPI-Update fort."
+                Write-Log "WARN" "FastAPI Deployment fehlgeschlagen. Fahre ohne FastAPI-Update fort."
             }
         } else {
-            Write-Warning "$deployScript nicht gefunden."
+            Write-Log "WARN" "$deployScript nicht gefunden."
         }
     }
 
     # 2.2 Postgres Connector Deployment
     if (-not $updatePostgresConnector) {
-        Write-Host "[2.2/4] Überspringe Postgres Connector Update." -ForegroundColor Yellow
+        Write-Log "INFO" "[2.2/5] Überspringe Postgres Connector Update."
     } else {
-        Write-Host "[2.2/4] Deploye Postgres Connector..." -ForegroundColor Yellow
+        Write-Log "INFO" "[2.2/5] Deploye Postgres Connector..."
         Set-Location $scriptRoot  # Zurück zum Root
 
         $deployScript = Join-Path $scriptRoot "postgresql-connector\deploy-postgres-connector.ps1"
         if (Test-Path $deployScript) {
             & $deployScript
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "Postgres Connector Deployment fehlgeschlagen. Fahre ohne Postgres Connector-Update fort."
+                Write-Log "WARN" "Postgres Connector Deployment fehlgeschlagen. Fahre ohne Postgres Connector-Update fort."
             }
         } else {
-            Write-Warning "$deployScript nicht gefunden."
+            Write-Log "WARN" "$deployScript nicht gefunden."
         }
     }
 
     if (-not $updateSpark) {
-        Write-Host "[2.3/4] Überspringe Spark Update." -ForegroundColor Yellow
+        Write-Log "INFO" "[2.3/5] Überspringe Spark Update."
     } else {
-        Write-Host "[2.3/4] Baue Spark Image..." -ForegroundColor Yellow
+        Write-Log "INFO" "[2.3/5] Baue Spark Image..."
         Set-Location $scriptRoot  # Zurück zum Root
 
         $deployScript = Join-Path $scriptRoot "spark\deploy-spark.ps1"
         if (Test-Path $deployScript) {
             & $deployScript -noHelm
             if ($LASTEXITCODE -ne 0) {
-                Write-Host "Spark Deployment fehlgeschlagen!" -ForegroundColor Red
+                Write-Log "ERROR" "Spark Deployment fehlgeschlagen!"
                 exit 1
             }
         } else {
-            Write-Warning "$deployScript nicht gefunden."
+            Write-Log "WARN" "$deployScript nicht gefunden."
         }
 
         Push-Location $chartPath  # Zurück zum Chart-Verzeichnis
@@ -107,36 +286,38 @@ try {
     Set-Location $absoluteChartPath
 
     # 3. Release prüfen
-    Write-Host "[3/4] Prüfe Release Status..." -ForegroundColor Yellow
+    Write-Log "INFO" "[3/5] Prüfe Release Status..."
     $releaseExists = helm list -n default -q | Select-String -Pattern "^$releaseName$"
 
     if (-not $releaseExists) {
-        Write-Host "Release '$releaseName' existiert nicht. Verwende init.ps1 für Installation." -ForegroundColor Red
+        Write-Log "ERROR" "Release '$releaseName' existiert nicht. Verwende init.ps1 für Installation."
         exit 1
     }
 
     $releaseStatus = helm list -n default -o json | ConvertFrom-Json | Where-Object { $_.name -eq $releaseName }
-    Write-Host "  Status: $($releaseStatus.status)" -ForegroundColor Cyan
-    Write-Host "  Revision: $($releaseStatus.revision)" -ForegroundColor Cyan
+    Write-Log "DEBUG" "  Status: $($releaseStatus.status)"
+    Write-Log "DEBUG" "  Revision: $($releaseStatus.revision)"
 
     # 4. Upgrade durchführen
-    Write-Host "[4/4] Führe Upgrade durch..." -ForegroundColor Yellow
-    Write-Host "  Warte auf Rollout (max. 5 Minuten)..." -ForegroundColor Cyan
+    Write-Log "INFO" "[4/5] Führe Upgrade durch..."
+    Write-Log "DEBUG" "  Warte auf Rollout (max. 5 Minuten)..."
     helm upgrade $releaseName . --namespace default --wait --timeout=300s
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Upgrade fehlgeschlagen!"
-        Write-Host "`nRollback verfügbar mit:" -ForegroundColor Yellow
-        Write-Host "  helm rollback $releaseName 0 --namespace default" -ForegroundColor Cyan
+        Write-Log "ERROR" "Upgrade fehlgeschlagen!"
+        Write-Log "WARN" "Rollback verfügbar mit:"
+        Write-Log "DEBUG" "  helm rollback $releaseName 0 --namespace default"
         exit 1
     }
+
+    Write-Log "INFO" "[5/5] Führe Tests aus..."
     start-sleep -Seconds 10 # Warten bis Pods bereit sind
-    Write-Host "Running pytest..." -ForegroundColor Yellow
+    Write-Log "DEBUG" "  Running pytest..."
     Set-Location "$scriptRoot/tests"
     pytest test_1_health.py -v --tb=short
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Tests fehlgeschlagen!"
+        Write-Log "ERROR" "Tests fehlgeschlagen!"
         exit 1
     }
 
@@ -150,33 +331,33 @@ try {
         foreach ($pod in $badPods) {
             $podName = $pod.metadata.name
             $podNs = $pod.metadata.namespace
-            Write-Host "ERROR: Pod $podName (Namespace: $podNs) ist nicht Running (Status: $($pod.status.phase)). Logs:" -ForegroundColor Red
+            Write-Log "ERROR" "Pod $podName (Namespace: $podNs) ist nicht Running (Status: $($pod.status.phase)). Logs:"
             kubectl logs $podName -n $podNs | ForEach-Object { Write-Host $_ }
         }
         if ($badPods.Count -gt 0) {
-            Write-Error "=== Upgrade fehlgeschlagen ==="
+            Write-Log "ERROR" "=== Upgrade fehlgeschlagen ==="
         } else {
-            Write-Host "=== Upgrade erfolgreich ===" -ForegroundColor Green
+            Write-Log "SUCCESS" "=== Upgrade erfolgreich ==="
         }
     } catch {
-        Write-Host "ERROR: Fehler beim Auslesen der Pod-Logs: $_" -ForegroundColor Red
+        Write-Log "ERROR" "Fehler beim Auslesen der Pod-Logs: $_"
     }
 
-    # 5. Status anzeigen
+    # 6. Status anzeigen
     Write-Host "`n=== Pod Status ===" -ForegroundColor Yellow
     kubectl get pods -A
 
     Write-Host "`n=== Service Status ===" -ForegroundColor Yellow
     kubectl get svc -A
 
-    Write-Host "`nUpdate abgeschlossen!" -ForegroundColor Green
+    Write-Log "SUCCESS" "Update abgeschlossen!"
 }
 catch {
-    Write-Error "Fehler beim Update: $_"
+    Write-Log "ERROR" "Fehler beim Update: $_"
     exit 1
 }
 finally {
     Set-Location $scriptRoot  # Immer zurück zum Ausgangspunkt
     $delay = (Get-Date) - $update_starttime
-    Write-Host ("Dauer des Updates: {0}h {1}m {2}s" -f ([int]$delay.TotalHours), ([int]$delay.Minutes), ([int]$delay.Seconds)) -ForegroundColor Cyan
+    Write-Log "DEBUG" ("Dauer des Updates: {0}h {1}m {2}s" -f ([int]$delay.TotalHours), ([int]$delay.Minutes), ([int]$delay.Seconds))
 }
