@@ -61,7 +61,7 @@ data:
             regex: __meta_kubernetes_node_label_(.+)
 
       # =================================================================
-      # Kubernetes Pods
+      # Kubernetes Pods (Auto-Discovery)
       # =================================================================
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
@@ -72,11 +72,17 @@ data:
             action: keep
             regex: true
           # Use custom port if defined
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_ip]
             action: replace
             target_label: __address__
-            regex: ([^:]+)(?::\d+)?;(\d+)
-            replacement: $1:$2
+            regex: ([^;]+);(.+)
+            replacement: $2:$1
+          # Use pod IP if no custom port
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: __address__
+            regex: (.+)
+            replacement: $1:80
           # Use custom path if defined
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
             action: replace
@@ -91,96 +97,38 @@ data:
             target_label: app
           - source_labels: [__meta_kubernetes_pod_label_component]
             target_label: component
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: kubernetes_node
 
       # =================================================================
-      # Kafka Brokers (JMX Exporter)
+      # Kubernetes Services (Endpoints)
       # =================================================================
-      - job_name: 'kafka-broker'
-        static_configs:
-          - targets:
-              - 'kafka-broker-0.kafka-broker.{{ .Values.kafka.namespace }}.svc.cluster.local:7071'
-              - 'kafka-broker-1.kafka-broker.{{ .Values.kafka.namespace }}.svc.cluster.local:7071'
-        relabel_configs:
-          - source_labels: [__address__]
-            target_label: instance
-          - target_label: job
-            replacement: kafka-broker
-
-      # =================================================================
-      # Kafka Controllers (JMX Exporter)
-      # =================================================================
-      - job_name: 'kafka-controller'
-        static_configs:
-          - targets:
-              - 'kafka-controller-0.kafka-controller.{{ .Values.kafka.namespace }}.svc.cluster.local:7071'
-              - 'kafka-controller-1.kafka-controller.{{ .Values.kafka.namespace }}.svc.cluster.local:7071'
-        relabel_configs:
-          - source_labels: [__address__]
-            target_label: instance
-          - target_label: job
-            replacement: kafka-controller
-
-      # =================================================================
-      # Kafka Connect (JMX Exporter + REST API)
-      # =================================================================
-      - job_name: 'kafka-connect-jmx'
+      - job_name: 'kubernetes-services'
         kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - {{ .Values.kafka.namespace }}
+          - role: endpoints
         relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_app]
+          # Only scrape services with annotation prometheus.io/scrape: "true"
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
             action: keep
-            regex: kafka-connect
-          - source_labels: [__meta_kubernetes_pod_ip]
+            regex: true
+          # Use custom port if defined
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
             target_label: __address__
-            replacement: $1:7071
-
-      - job_name: 'kafka-connect-api'
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - {{ .Values.kafka.namespace }}
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            action: keep
-            regex: kafka-connect
-          - source_labels: [__meta_kubernetes_pod_ip]
-            target_label: __address__
-            replacement: $1:8083
-          - target_label: __metrics_path__
-            replacement: /metrics
-
-      # =================================================================
-      # PostgreSQL (postgres-exporter)
-      # =================================================================
-      - job_name: 'postgresql'
-        static_configs:
-          - targets: ['postgres-exporter.{{ .Values.postgresql.namespace }}.svc.cluster.local:9187']
-        relabel_configs:
-          - target_label: job
-            replacement: postgresql
-
-      # =================================================================
-      # FastAPI Application
-      # =================================================================
-      - job_name: 'fastapi'
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - {{ .Values.fastapi.namespace }}
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            action: keep
-            regex: fastapi
-          - source_labels: [__meta_kubernetes_pod_ip]
-            target_label: __address__
-            replacement: $1:8000
-          - target_label: __metrics_path__
-            replacement: /metrics
+            regex: (.+)
+            replacement: __address__:$1
+          # Use custom path if defined
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          # Add service metadata as labels
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            target_label: kubernetes_service
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: kubernetes_pod_name
 
 ---
 apiVersion: apps/v1
