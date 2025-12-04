@@ -200,6 +200,43 @@ Bitte manuell installieren:
     #region 4. Installation
     Write-Log "INFO" "[4/5] Installiere System Cluster..."
 
+    # Warte kurz, bis Cluster vollständig bereit ist
+    Write-Log "DEBUG" "  Warte auf Kubernetes API..."
+    $maxRetries = 10
+    $retryCount = 0
+    while ($retryCount -lt $maxRetries) {
+        kubectl cluster-info 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log "SUCCESS" "  Kubernetes API bereit"
+            break
+        }
+        $retryCount++
+        Write-Log "DEBUG" "  Warte auf Cluster (Versuch $retryCount/$maxRetries)..."
+        Start-Sleep -Seconds 5
+    }
+
+    # Warte bis kube-apiserver antwortet
+    Write-Log "DEBUG" "  Warte auf API-Server..."
+    $maxRetries = 15
+    $retryCount = 0
+    $apiReady = $false
+    while ($retryCount -lt $maxRetries -and -not $apiReady) {
+        try {
+            $testPod = kubectl api-resources 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                $apiReady = $true
+                Write-Log "SUCCESS" "  API-Server reagiert"
+            }
+        } catch {}
+        if (-not $apiReady) {
+            $retryCount++
+            if ($retryCount -lt $maxRetries) {
+                Write-Log "DEBUG" "  API-Server nicht bereit (Versuch $retryCount/$maxRetries)..."
+                Start-Sleep -Seconds 3
+            }
+        }
+    }
+
     # Prüfen ob Release bereits existiert (im default Namespace!)
     $releases = helm list -n default -o json 2>$null | ConvertFrom-Json
     $releaseExists = $releases | Where-Object { $_.name -eq $clusterName }
@@ -227,6 +264,40 @@ Bitte manuell installieren:
 
     if ($LASTEXITCODE -ne 0) {
         Write-Log "ERROR" "$action fehlgeschlagen!"
+        Write-Log "INFO" "Pods mit Status ungleich 'Running':"
+        $pods = (kubectl get pods -A -o json | ConvertFrom-Json).items
+
+        # Filtere Pods, bei denen mindestens ein Container nicht im Status 'running' ist
+        $nonRunning = @()
+        foreach ($pod in $pods) {
+            if ($pod.status -and $pod.status.containerStatuses) {
+                foreach ($container in $pod.status.containerStatuses) {
+                    $stateName = $container.state.PSObject.Properties.Name
+                    if ($stateName -ne 'running') {
+                        $reason = $null
+                        if ($container.state.$stateName -and $container.state.$stateName.reason) {
+                            $reason = $container.state.$stateName.reason
+                        } elseif ($container.state.$stateName -and $container.state.$stateName.message) {
+                            $reason = $container.state.$stateName.message
+                        } else {
+                            $reason = $stateName
+                        }
+                        $nonRunning += [PSCustomObject]@{
+                            Namespace = $pod.metadata.namespace
+                            Name      = $pod.metadata.name
+                            Phase     = $pod.status.phase
+                            Status    = $stateName
+                            Reason    = $reason
+                        }
+                    }
+                }
+            }
+        }
+        if ($nonRunningPods) {
+            $nonRunning | Format-Table -AutoSize
+        } else {
+            Write-Log "SUCCESS" "Alle Pods sind im Status 'Running'."
+        }
         exit 1
     }
     Write-Log "SUCCESS" "$action erfolgreich"
