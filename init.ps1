@@ -1,7 +1,8 @@
 ﻿# Installation Script
 $clusterName = "system-cluster"
-$chartPath = "helm-charts/$clusterName"
 $env:KIND_EXPERIMENTAL_PROVIDER = "podman"
+$initScriptRoot = $PSScriptRoot
+$chartPath = Join-Path $initScriptRoot "helm-charts/$clusterName"
 
 $global:init_starttime = Get-Date
 function Write-Log {
@@ -125,7 +126,7 @@ Bitte manuell installieren:
 
     #region 3. Chart Lint
     Write-Log "INFO" "[3/5] Validiere Helm Chart..."
-    Push-Location $chartPath
+    Set-Location $chartPath
 
     # Dependencies aktualisieren
     Write-Log "INFO" "Lade Chart Dependencies..."
@@ -145,9 +146,9 @@ Bitte manuell installieren:
 
     #region 3.A FastAPI Image bauen
     Write-Log "INFO" "[3A/5] Baue FastAPI Image..."
-    Pop-Location  # Zurück zum Root-Verzeichnis
+    Set-Location $initScriptRoot  # Zurück zum Root
 
-    $deployScript = Join-Path $PSScriptRoot "fastapi\deploy-fastapi.ps1"
+    $deployScript = Join-Path $initScriptRoot "fastapi\deploy-fastapi.ps1"
     if (Test-Path $deployScript) {
         & $deployScript -noHelm
         if ($LASTEXITCODE -ne 0) {
@@ -159,14 +160,14 @@ Bitte manuell installieren:
         exit 1
     }
 
-    Push-Location $chartPath  # Zurück zum Chart-Verzeichnis
+    Set-Location $chartPath  # Zurück zum Chart-Verzeichnis
     #endregion 3.A FastAPI Image bauen
 
     #region 3.B Postgres Connector Image bauen
     Write-Log "INFO" "[3B/5] Baue Postgres Connector Image..."
-    Set-Location $scriptRoot  # Zurück zum Root
+    Set-Location $initScriptRoot  # Zurück zum Root
 
-    $deployScript = Join-Path $scriptRoot "postgresql-connector\deploy-postgres-connector.ps1"
+    $deployScript = Join-Path $initScriptRoot "postgresql-connector\deploy-postgres-connector.ps1"
     if (Test-Path $deployScript) {
         & $deployScript -noHelm
         if ($LASTEXITCODE -ne 0) {
@@ -179,9 +180,9 @@ Bitte manuell installieren:
 
     #region 3.C Spark Image bauen
     Write-Log "INFO" "[3C/5] Baue Spark Image..."
-    Pop-Location  # Zurück zum Root-Verzeichnis
+    Set-Location $initScriptRoot  # Zurück zum Root-Verzeichnis
 
-    $deployScript = Join-Path $PSScriptRoot "spark\deploy-spark.ps1"
+    $deployScript = Join-Path $initScriptRoot "spark\deploy-spark.ps1"
     if (Test-Path $deployScript) {
         & $deployScript -noHelm
         if ($LASTEXITCODE -ne 0) {
@@ -193,7 +194,7 @@ Bitte manuell installieren:
         exit 1
     }
 
-    Push-Location $chartPath  # Zurück zum Chart-Verzeichnis
+    Set-Location $chartPath  # Zurück zum Chart-Verzeichnis
     #endregion 3.C Spark Image bauen
 
 
@@ -314,8 +315,7 @@ Bitte manuell installieren:
     #endregion Status
 }
 finally {
-    Pop-Location
+    Set-Location $initScriptRoot
     $delay = (Get-Date) - $init_starttime
     Write-Host ("Dauer der Installation: {0}h {1}m {2}s" -f ([int]$delay.TotalHours), ([int]$delay.Minutes), ([int]$delay.Seconds)) -ForegroundColor Cyan
 }
-Pop-Location
