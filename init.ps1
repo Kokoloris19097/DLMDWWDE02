@@ -313,6 +313,22 @@ Bitte manuell installieren:
     kubectl get pods -A -n default
     Write-Log "SUCCESS" "=== Cluster läuft! ==="
     #endregion Status
+
+    #region 6. Port-Forwarding Skript starten
+    Write-Log "INFO" "Starte Port-Forwarding Skript..."
+    $portForwardScript = Join-Path $initScriptRoot "port-forward.ps1"
+    if (Test-Path $portForwardScript) {
+        & $portForwardScript
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "ERROR" "Port-Forwarding Skript fehlgeschlagen!"
+            exit 1
+        } else {
+            Write-Log "SUCCESS" "Port-Forwarding aktiv"
+        }
+    } else {
+        Write-Log "WARN" "port-forward.ps1 nicht gefunden."
+    }
+    #endregion 6. Port-Forwarding Skript starten
 }
 finally {
     Set-Location $initScriptRoot
