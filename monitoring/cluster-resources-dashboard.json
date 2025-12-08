@@ -251,7 +251,7 @@
           {
             "datasource": null,
             "editorMode": "code",
-            "expr": "sum(rate(container_network_receive_bytes_total{container!=\"\"}[5m]) + rate(container_network_transmit_bytes_total{container!=\"\"}[5m])) / 1024 / 1024",
+            "expr": "sum(rate(container_network_receive_bytes_total{pod!='',namespace!=''}[5m]) + rate(container_network_transmit_bytes_total{pod!='',namespace!=''}[5m])) / 1024 / 1024",
             "legendFormat": "Network",
             "range": true,
             "refId": "A"
@@ -524,7 +524,7 @@
           {
             "datasource": null,
             "editorMode": "code",
-            "expr": "sum(rate(container_network_receive_bytes_total{container!=\"\"}[5m]) + rate(container_network_transmit_bytes_total{container!=\"\"}[5m])) by (namespace) / 1024 / 1024",
+            "expr": "sum(rate(container_network_receive_bytes_total{pod!='',namespace!=''}[5m]) + rate(container_network_transmit_bytes_total{pod!='',namespace!=''}[5m])) by (namespace) / 1024 / 1024",
             "legendFormat": "{{namespace}}",
             "range": true,
             "refId": "A"
