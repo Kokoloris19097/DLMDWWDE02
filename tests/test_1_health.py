@@ -225,3 +225,40 @@ class TestFastAPIHealth:
         )
         assert success, f"Failed to reach ready endpoint: {output}"
         assert "200" in output, f"Ready endpoint returned non-200: {output}"
+
+    # =============================================================================
+    # LAYER 1E: PROMETHEUS & GRAFANA HEALTH (Monitoring Foundation)
+    # =============================================================================
+
+class TestMonitoringHealth:
+    """Prometheus & Grafana health checks"""
+
+    @pytest.mark.health
+    @pytest.mark.dependency(name="prometheus_running", scope="session")
+    def test_prometheus_running(self, get_pod_phase, get_pod_names, config):
+        """
+        Verify Prometheus pod is running (dynamic pod name)
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        prometheus_pods = [n for n in pod_names if n.startswith("prometheus-")]
+        assert prometheus_pods, f"No Prometheus pod found in {config.MONITORING_NAMESPACE} namespace"
+
+        pod_name = prometheus_pods[0]
+        success, phase = get_pod_phase(pod_name, config.MONITORING_NAMESPACE)
+        assert success, f"Failed to get pod status: {phase}"
+        assert phase == "Running", f"Prometheus pod {pod_name} is not running: {phase}"
+
+    @pytest.mark.health
+    @pytest.mark.dependency(name="grafana_running", scope="session")
+    def test_grafana_running(self, get_pod_phase, get_pod_names, config):
+        """
+        Verify Grafana pod is running (dynamic pod name)
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        grafana_pods = [n for n in pod_names if n.startswith("grafana-")]
+        assert grafana_pods, f"No Grafana pod found in {config.MONITORING_NAMESPACE} namespace"
+
+        pod_name = grafana_pods[0]
+        success, phase = get_pod_phase(pod_name, config.MONITORING_NAMESPACE)
+        assert success, f"Failed to get pod status: {phase}"
+        assert phase == "Running", f"Grafana pod {pod_name} is not running: {phase}"

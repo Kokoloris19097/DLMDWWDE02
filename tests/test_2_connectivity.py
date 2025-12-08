@@ -230,3 +230,142 @@ class TestFastAPIConnectivity:
 
         assert success, f"Failed to execute psycopg2 test: {output}"
         assert "OK" in output, f"Database connection test failed: {output}"
+
+
+# =============================================================================
+# LAYER 2E: MONITORING CONNECTIVITY (Depends on Monitoring Health)
+# =============================================================================
+
+class TestMonitoringConnectivity:
+    """Monitoring stack network connectivity tests"""
+
+    PROMETHEUS_HOST = "prometheus.monitoring.svc.cluster.local"
+    GRAFANA_HOST = "grafana.monitoring.svc.cluster.local"
+    KUBERNETES_API = "kubernetes.default.svc"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="grafana_to_prometheus", scope="session")
+    def test_grafana_to_prometheus(self, kubectl, get_pod_names, config):
+        """
+        Verify Grafana can reach Prometheus (datasource connection)
+
+        Dependencies: grafana_running, prometheus_running
+        """
+        # Get Grafana pod name dynamically
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        grafana_pods = [n for n in pod_names if n.startswith("grafana-")]
+        assert grafana_pods, "No Grafana pod found for connectivity test"
+
+        grafana_pod = grafana_pods[0]
+
+        # Test TCP connectivity to Prometheus
+        cmd = f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- {tcp_check_with_nc_fallback(self.PROMETHEUS_HOST, 9090)}"
+        success, output = kubectl(cmd)
+
+        assert success, f"Command failed: {output}"
+        assert "OK" in output, f"Grafana cannot reach Prometheus: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="grafana_prometheus_api", scope="session")
+    def test_grafana_prometheus_api(self, kubectl, get_pod_names, config):
+        """
+        Verify Grafana can query Prometheus API
+
+        Dependencies: grafana_to_prometheus
+        """
+        # Get Grafana pod name dynamically
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        grafana_pods = [n for n in pod_names if n.startswith("grafana-")]
+        assert grafana_pods, "No Grafana pod found for API test"
+
+        grafana_pod = grafana_pods[0]
+
+        # Test Prometheus API health endpoint
+        cmd = f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- curl -s -o /dev/null -w '%{{http_code}}' http://{self.PROMETHEUS_HOST}:9090/-/healthy"
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query Prometheus API: {output}"
+        assert "200" in output, f"Prometheus API not healthy: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="prometheus_to_kubernetes_api", scope="session")
+    def test_prometheus_to_kubernetes_api(self, kubectl, get_pod_names, config):
+        """
+        Verify Prometheus can query its own API and has service discovery configured
+        (Validates that Prometheus is operational and can perform metric queries)
+
+        Dependencies: prometheus_running
+        """
+        # Get Prometheus pod name dynamically
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        prometheus_pods = [n for n in pod_names if n.startswith("prometheus-")]
+        assert prometheus_pods, "No Prometheus pod found for API connectivity test"
+
+        prometheus_pod = prometheus_pods[0]
+
+        # Test 1: Verify Prometheus API is responding
+        cmd = f"exec -n {config.MONITORING_NAMESPACE} {prometheus_pod} -- wget -q -O- http://localhost:9090/api/v1/status/config"
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query Prometheus configuration: {output}"
+        assert '"status":"success"' in output, f"Prometheus API returned error: {output}"
+        assert "kubernetes-" in output, f"No Kubernetes service discovery configured in Prometheus: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="prometheus_scrape_targets", scope="session")
+    def test_prometheus_scrape_targets(self, kubectl, config):
+        """
+        Verify Prometheus has active scrape targets
+
+        Dependencies: prometheus_to_kubernetes_api
+        """
+        # Query Prometheus API for active targets
+        cmd = f"exec -n {config.MONITORING_NAMESPACE} deployment/prometheus -- wget -q -O- http://localhost:9090/api/v1/targets"
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query Prometheus targets: {output}"
+        assert '"status":"success"' in output, f"Prometheus API returned error: {output}"
+        assert '"activeTargets"' in output, f"No active targets found: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="prometheus_to_cadvisor", scope="session")
+    def test_prometheus_to_cadvisor(self, kubectl, get_pod_names, config):
+        """
+        Verify Prometheus can scrape cAdvisor metrics from Kubelet
+
+        Dependencies: prometheus_running
+        """
+        # Get Prometheus pod name dynamically
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        prometheus_pods = [n for n in pod_names if n.startswith("prometheus-")]
+        assert prometheus_pods, "No Prometheus pod found for cAdvisor test"
+
+        prometheus_pod = prometheus_pods[0]
+
+        # Query for container_cpu_usage_seconds_total metric (provided by cAdvisor)
+        cmd = (
+            f"exec -n {config.MONITORING_NAMESPACE} {prometheus_pod} -- "
+            f"wget -q -O- 'http://localhost:9090/api/v1/query?query=up{{job=\"kubernetes-cadvisor\"}}'"
+        )
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query cAdvisor metrics: {output}"
+        assert '"status":"success"' in output, f"Query failed: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="monitoring_endpoints", scope="session")
+    def test_monitoring_endpoints(self, get_endpoints, config):
+        """
+        Verify monitoring service endpoints are available
+
+        Dependencies: prometheus_running, grafana_running
+        """
+        # Check Prometheus endpoints
+        success, output = get_endpoints("prometheus", config.MONITORING_NAMESPACE)
+        assert success, f"Failed to get Prometheus endpoints: {output}"
+        assert output != "", f"No endpoints for Prometheus service: {output}"
+
+        # Check Grafana endpoints
+        success, output = get_endpoints("grafana", config.MONITORING_NAMESPACE)
+        assert success, f"Failed to get Grafana endpoints: {output}"
+        assert output != "", f"No endpoints for Grafana service: {output}"

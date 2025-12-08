@@ -665,3 +665,352 @@ class TestCompleteEndToEndWorkflow:
 
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
+
+
+# =============================================================================
+# LAYER 3F: PROMETHEUS FUNCTIONAL TESTS
+# =============================================================================
+
+class TestPrometheusMetrics:
+    """Test Prometheus metric collection and query functionality"""
+
+    @pytest.mark.functional
+    @pytest.mark.dependency(name="prometheus_metrics_available", scope="session")
+    def test_prometheus_has_metrics(self, kubectl, get_pod_names, config):
+        """
+        Verify Prometheus is collecting metrics from Kubernetes
+
+        Dependencies: prometheus_running, prometheus_scrape_targets
+        """
+        # Get Prometheus pod name dynamically
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        prometheus_pods = [n for n in pod_names if n.startswith("prometheus-")]
+        assert prometheus_pods, "No Prometheus pod found"
+
+        prometheus_pod = prometheus_pods[0]
+
+        # Query for basic Kubernetes metrics (up metric)
+        cmd = (
+            f"exec -n {config.MONITORING_NAMESPACE} {prometheus_pod} -- "
+            f"wget -q -O- 'http://localhost:9090/api/v1/query?query=up'"
+        )
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query Prometheus metrics: {output}"
+        assert '"status":"success"' in output, f"Prometheus query failed: {output}"
+        assert '"result"' in output, f"No results returned: {output}"
+        
+        # Verify we have actual metric data
+        try:
+            data = json.loads(output)
+            assert len(data["data"]["result"]) > 0, "No metrics found"
+        except (json.JSONDecodeError, KeyError) as e:
+            pytest.fail(f"Invalid Prometheus response: {e}\nOutput: {output}")
+
+    @pytest.mark.functional
+    def test_prometheus_container_metrics(self, kubectl, get_pod_names, config):
+        """
+        Verify Prometheus is collecting container resource metrics (cAdvisor)
+
+        Dependencies: prometheus_running, prometheus_to_cadvisor
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        prometheus_pods = [n for n in pod_names if n.startswith("prometheus-")]
+        assert prometheus_pods, "No Prometheus pod found"
+
+        prometheus_pod = prometheus_pods[0]
+
+        # Query for container CPU usage metric
+        cmd = (
+            f"exec -n {config.MONITORING_NAMESPACE} {prometheus_pod} -- "
+            f"wget -q -O- 'http://localhost:9090/api/v1/query?query=container_cpu_usage_seconds_total'"
+        )
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query container metrics: {output}"
+        assert '"status":"success"' in output, f"Container metrics query failed: {output}"
+        
+        try:
+            data = json.loads(output)
+            assert len(data["data"]["result"]) > 0, "No container CPU metrics found"
+        except (json.JSONDecodeError, KeyError) as e:
+            pytest.fail(f"Invalid Prometheus response: {e}\nOutput: {output}")
+
+    @pytest.mark.functional
+    def test_prometheus_memory_metrics(self, kubectl, get_pod_names, config):
+        """
+        Verify Prometheus is collecting container memory metrics
+
+        Dependencies: prometheus_running
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        prometheus_pods = [n for n in pod_names if n.startswith("prometheus-")]
+        assert prometheus_pods, "No Prometheus pod found"
+
+        prometheus_pod = prometheus_pods[0]
+
+        # Query for container memory usage metric
+        cmd = (
+            f"exec -n {config.MONITORING_NAMESPACE} {prometheus_pod} -- "
+            f"wget -q -O- 'http://localhost:9090/api/v1/query?query=container_memory_working_set_bytes'"
+        )
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query memory metrics: {output}"
+        assert '"status":"success"' in output, f"Memory metrics query failed: {output}"
+        
+        try:
+            data = json.loads(output)
+            assert len(data["data"]["result"]) > 0, "No container memory metrics found"
+        except (json.JSONDecodeError, KeyError) as e:
+            pytest.fail(f"Invalid Prometheus response: {e}\nOutput: {output}")
+
+    @pytest.mark.functional
+    def test_prometheus_namespace_metrics(self, kubectl, get_pod_names, config):
+        """
+        Verify Prometheus can query metrics for specific namespaces
+
+        Dependencies: prometheus_running
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        prometheus_pods = [n for n in pod_names if n.startswith("prometheus-")]
+        assert prometheus_pods, "No Prometheus pod found"
+
+        prometheus_pod = prometheus_pods[0]
+
+        # Query for metrics in messaging namespace
+        cmd = (
+            f"exec -n {config.MONITORING_NAMESPACE} {prometheus_pod} -- "
+            f"wget -q -O- 'http://localhost:9090/api/v1/query?query=container_memory_working_set_bytes{{namespace=\"{config.MESSAGING_NAMESPACE}\"}}'"
+        )
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query namespace metrics: {output}"
+        assert '"status":"success"' in output, f"Namespace metrics query failed: {output}"
+        
+        try:
+            data = json.loads(output)
+            results = data["data"]["result"]
+            if len(results) > 0:
+                # Verify namespace label is correct
+                assert results[0]["metric"]["namespace"] == config.MESSAGING_NAMESPACE, \
+                    f"Namespace mismatch in metrics"
+        except (json.JSONDecodeError, KeyError) as e:
+            pytest.fail(f"Invalid Prometheus response: {e}\nOutput: {output}")
+
+    @pytest.mark.functional
+    def test_prometheus_targets_healthy(self, kubectl, get_pod_names, config):
+        """
+        Verify Prometheus scrape targets are healthy (up state)
+
+        Dependencies: prometheus_running, prometheus_scrape_targets
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        prometheus_pods = [n for n in pod_names if n.startswith("prometheus-")]
+        assert prometheus_pods, "No Prometheus pod found"
+
+        prometheus_pod = prometheus_pods[0]
+
+        # Get all targets status
+        cmd = f"exec -n {config.MONITORING_NAMESPACE} {prometheus_pod} -- wget -q -O- http://localhost:9090/api/v1/targets"
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query targets: {output}"
+        assert '"status":"success"' in output, f"Targets query failed: {output}"
+        
+        try:
+            data = json.loads(output)
+            active_targets = data["data"]["activeTargets"]
+            assert len(active_targets) > 0, "No active scrape targets found"
+            
+            # Check that at least some targets are healthy
+            healthy_count = sum(1 for t in active_targets if t["health"] == "up")
+            assert healthy_count > 0, f"No healthy targets found. Total targets: {len(active_targets)}"
+            
+        except (json.JSONDecodeError, KeyError) as e:
+            pytest.fail(f"Invalid Prometheus targets response: {e}\nOutput: {output}")
+
+
+# =============================================================================
+# LAYER 3G: GRAFANA FUNCTIONAL TESTS
+# =============================================================================
+
+class TestGrafanaDatasourceAndDashboards:
+    """Test Grafana datasource configuration and dashboard functionality"""
+
+    @pytest.mark.functional
+    @pytest.mark.dependency(name="grafana_api_accessible", scope="session")
+    def test_grafana_api_health(self, kubectl, get_pod_names, config):
+        """
+        Verify Grafana API is accessible and healthy
+
+        Dependencies: grafana_running
+        """
+        # Get Grafana pod name dynamically
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        grafana_pods = [n for n in pod_names if n.startswith("grafana-")]
+        assert grafana_pods, "No Grafana pod found"
+
+        grafana_pod = grafana_pods[0]
+
+        # Check Grafana health endpoint
+        cmd = f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- curl -s http://localhost:3000/api/health"
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query Grafana health: {output}"
+        assert "ok" in output.lower() or "database" in output.lower(), f"Grafana health check failed: {output}"
+
+    @pytest.mark.functional
+    def test_grafana_datasource_configured(self, kubectl, get_pod_names, config):
+        """
+        Verify Grafana has Prometheus datasource configured
+
+        Dependencies: grafana_running, grafana_to_prometheus
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        grafana_pods = [n for n in pod_names if n.startswith("grafana-")]
+        assert grafana_pods, "No Grafana pod found"
+
+        grafana_pod = grafana_pods[0]
+
+        # Query Grafana datasources API (using admin:admin default credentials)
+        cmd = (
+            f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- "
+            f"curl -s -u admin:admin http://localhost:3000/api/datasources"
+        )
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query Grafana datasources: {output}"
+        
+        try:
+            datasources = json.loads(output)
+            assert isinstance(datasources, list), "Datasources response should be a list"
+            assert len(datasources) > 0, "No datasources configured in Grafana"
+            
+            # Find Prometheus datasource
+            prometheus_ds = next((ds for ds in datasources if ds.get("type") == "prometheus"), None)
+            assert prometheus_ds is not None, "No Prometheus datasource found in Grafana"
+            assert "prometheus" in prometheus_ds.get("url", "").lower(), \
+                f"Prometheus datasource URL invalid: {prometheus_ds.get('url')}"
+            
+        except json.JSONDecodeError as e:
+            pytest.fail(f"Invalid Grafana datasources response: {e}\nOutput: {output}")
+
+    @pytest.mark.functional
+    def test_grafana_can_query_prometheus(self, kubectl, get_pod_names, config):
+        """
+        Verify Grafana can successfully query Prometheus datasource
+
+        Dependencies: grafana_running, grafana_prometheus_api
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        grafana_pods = [n for n in pod_names if n.startswith("grafana-")]
+        assert grafana_pods, "No Grafana pod found"
+
+        grafana_pod = grafana_pods[0]
+
+        # First, get datasource UID
+        cmd = (
+            f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- "
+            f"curl -s -u admin:admin http://localhost:3000/api/datasources"
+        )
+        success, output = kubectl(cmd)
+        assert success, "Failed to get datasources"
+        
+        try:
+            datasources = json.loads(output)
+            prometheus_ds = next((ds for ds in datasources if ds.get("type") == "prometheus"), None)
+            assert prometheus_ds is not None, "No Prometheus datasource found"
+            ds_uid = prometheus_ds.get("uid")
+            assert ds_uid, "Datasource UID not found"
+            
+            # Query Prometheus through Grafana datasource proxy
+            query = "up"
+            cmd = (
+                f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- "
+                f"curl -s -u admin:admin "
+                f"'http://localhost:3000/api/datasources/proxy/{ds_uid}/api/v1/query?query={query}'"
+            )
+            success, output = kubectl(cmd)
+            
+            assert success, f"Failed to query Prometheus via Grafana: {output}"
+            assert '"status":"success"' in output, f"Prometheus query via Grafana failed: {output}"
+            
+            query_result = json.loads(output)
+            assert len(query_result.get("data", {}).get("result", [])) > 0, \
+                "No metrics returned from Prometheus via Grafana"
+            
+        except (json.JSONDecodeError, KeyError, StopIteration) as e:
+            pytest.fail(f"Failed to query Prometheus via Grafana: {e}\nOutput: {output}")
+
+    @pytest.mark.functional
+    def test_grafana_dashboards_provisioned(self, kubectl, get_pod_names, config):
+        """
+        Verify Grafana has provisioned dashboards available
+
+        Dependencies: grafana_running
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        grafana_pods = [n for n in pod_names if n.startswith("grafana-")]
+        assert grafana_pods, "No Grafana pod found"
+
+        grafana_pod = grafana_pods[0]
+
+        # Query Grafana dashboards API
+        cmd = (
+            f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- "
+            f"curl -s -u admin:admin http://localhost:3000/api/search?type=dash-db"
+        )
+        success, output = kubectl(cmd)
+
+        assert success, f"Failed to query Grafana dashboards: {output}"
+        
+        try:
+            dashboards = json.loads(output)
+            assert isinstance(dashboards, list), "Dashboards response should be a list"
+            # Note: May be empty if no dashboards provisioned yet, just verify API works
+            
+        except json.JSONDecodeError as e:
+            pytest.fail(f"Invalid Grafana dashboards response: {e}\nOutput: {output}")
+
+    @pytest.mark.functional
+    @pytest.mark.slow
+    def test_grafana_can_render_dashboard(self, kubectl, get_pod_names, config):
+        """
+        Verify Grafana can render a dashboard with Prometheus data
+
+        Dependencies: grafana_running, grafana_datasource_configured
+        """
+        pod_names = get_pod_names(config.MONITORING_NAMESPACE)
+        grafana_pods = [n for n in pod_names if n.startswith("grafana-")]
+        assert grafana_pods, "No Grafana pod found"
+
+        grafana_pod = grafana_pods[0]
+
+        # Get list of dashboards
+        cmd = (
+            f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- "
+            f"curl -s -u admin:admin http://localhost:3000/api/search?type=dash-db"
+        )
+        success, output = kubectl(cmd)
+        assert success, "Failed to get dashboards"
+        
+        try:
+            dashboards = json.loads(output)
+            if len(dashboards) > 0:
+                # Try to get dashboard JSON for first dashboard
+                dashboard_uid = dashboards[0].get("uid")
+                cmd = (
+                    f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- "
+                    f"curl -s -u admin:admin http://localhost:3000/api/dashboards/uid/{dashboard_uid}"
+                )
+                success, output = kubectl(cmd)
+                
+                assert success, f"Failed to get dashboard: {output}"
+                dashboard_data = json.loads(output)
+                assert "dashboard" in dashboard_data, "Invalid dashboard response"
+                assert "panels" in dashboard_data.get("dashboard", {}), "Dashboard has no panels"
+            # If no dashboards, test passes (dashboards are optional)
+            
+        except (json.JSONDecodeError, KeyError) as e:
+            pytest.fail(f"Failed to render dashboard: {e}\nOutput: {output}")
