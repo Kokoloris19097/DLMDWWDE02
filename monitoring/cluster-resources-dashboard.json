@@ -1,0 +1,1050 @@
+{
+  "title": "Kubernetes Cluster Resources",
+  "uid": "cluster-resources-overview",
+  "tags": ["kubernetes", "cluster", "resources"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 2
+                },
+                {
+                  "color": "red",
+                  "value": 4
+                }
+              ]
+            },
+            "unit": "short",
+            "decimals": 2
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
+        "id": 1,
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "textMode": "auto"
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m]))",
+            "legendFormat": "CPU Cores",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Total CPU Cores Used",
+        "type": "stat"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 8
+                },
+                {
+                  "color": "red",
+                  "value": 12
+                }
+              ]
+            },
+            "unit": "decgbytes",
+            "decimals": 2
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        },
+        "id": 2,
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "textMode": "auto"
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "sum(container_memory_usage_bytes{container!=\"\",container!=\"POD\"}) / 1024 / 1024 / 1024",
+            "legendFormat": "Memory",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Total Memory Used",
+        "type": "stat"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "blue",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "short",
+            "decimals": 0
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
+        "id": 3,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "textMode": "auto"
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "count(count by (pod, namespace) (container_memory_usage_bytes{container!=\"\",container!=\"POD\"}))",
+            "legendFormat": "Pods",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Running Pods",
+        "type": "stat"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "blue",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "MBs",
+            "decimals": 2
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 5,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "id": 4,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "textMode": "auto"
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "sum(rate(container_network_receive_bytes_total{container!=\"\"}[5m]) + rate(container_network_transmit_bytes_total{container!=\"\"}[5m])) / 1024 / 1024",
+            "legendFormat": "Network",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Network Throughput",
+        "type": "stat"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "CPU Cores",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 20,
+              "gradientMode": "opacity",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "smooth",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "short",
+            "decimals": 3
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 5
+        },
+        "id": 5,
+        "options": {
+          "legend": {
+            "calcs": [
+              "lastNotNull",
+              "mean",
+              "max"
+            ],
+            "displayMode": "table",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m])) by (namespace)",
+            "legendFormat": "{{namespace}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "CPU Usage by Namespace",
+        "type": "timeseries"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "Memory (GB)",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 20,
+              "gradientMode": "opacity",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "smooth",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "decgbytes",
+            "decimals": 2
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 5
+        },
+        "id": 6,
+        "options": {
+          "legend": {
+            "calcs": [
+              "lastNotNull",
+              "mean",
+              "max"
+            ],
+            "displayMode": "table",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "sum(container_memory_usage_bytes{container!=\"\",container!=\"POD\"}) by (namespace) / 1024 / 1024 / 1024",
+            "legendFormat": "{{namespace}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Memory Usage by Namespace",
+        "type": "timeseries"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "MB/s",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 20,
+              "gradientMode": "opacity",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "smooth",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "MBs",
+            "decimals": 2
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 14
+        },
+        "id": 7,
+        "options": {
+          "legend": {
+            "calcs": [
+              "lastNotNull",
+              "mean",
+              "max"
+            ],
+            "displayMode": "table",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "sum(rate(container_network_receive_bytes_total{container!=\"\"}[5m]) + rate(container_network_transmit_bytes_total{container!=\"\"}[5m])) by (namespace) / 1024 / 1024",
+            "legendFormat": "{{namespace}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Network Traffic by Namespace",
+        "type": "timeseries"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "MB/s",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 20,
+              "gradientMode": "opacity",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "smooth",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "MBs",
+            "decimals": 2
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 14
+        },
+        "id": 8,
+        "options": {
+          "legend": {
+            "calcs": [
+              "lastNotNull",
+              "mean",
+              "max"
+            ],
+            "displayMode": "table",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "sum(rate(container_fs_reads_bytes_total{container!=\"\"}[5m]) + rate(container_fs_writes_bytes_total{container!=\"\"}[5m])) by (namespace) / 1024 / 1024",
+            "legendFormat": "{{namespace}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Disk I/O by Namespace",
+        "type": "timeseries"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              }
+            },
+            "mappings": [],
+            "unit": "short",
+            "decimals": 3
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 23
+        },
+        "id": 9,
+        "options": {
+          "displayLabels": [
+            "name",
+            "percent"
+          ],
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "showLegend": true,
+            "values": [
+              "value",
+              "percent"
+            ]
+          },
+          "pieType": "donut",
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m])) by (namespace)",
+            "legendFormat": "{{namespace}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "CPU Distribution by Namespace",
+        "type": "piechart"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              }
+            },
+            "mappings": [],
+            "unit": "bytes",
+            "decimals": 2
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 23
+        },
+        "id": 10,
+        "options": {
+          "displayLabels": [
+            "name",
+            "percent"
+          ],
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "showLegend": true,
+            "values": [
+              "value",
+              "percent"
+            ]
+          },
+          "pieType": "donut",
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "expr": "sum(container_memory_usage_bytes{container!=\"\",container!=\"POD\"}) by (namespace)",
+            "legendFormat": "{{namespace}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Memory Distribution by Namespace",
+        "type": "piechart"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "custom": {
+              "align": "left",
+              "cellOptions": {
+                "type": "auto"
+              },
+              "inspect": false
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "CPU Cores"
+                },
+                {
+                  "id": "unit",
+                  "value": "short"
+                },
+                {
+                  "id": "decimals",
+                  "value": 3
+                },
+                {
+                  "id": "custom.align",
+                  "value": "right"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 120
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "namespace"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Namespace"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 150
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "pod"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Pod"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 300
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 31
+        },
+        "id": 12,
+        "options": {
+          "cellHeight": "sm",
+          "footer": {
+            "countRows": false,
+            "fields": "",
+            "reducer": [
+              "sum"
+            ],
+            "show": false
+          },
+          "showHeader": true,
+          "sortBy": [
+            {
+              "desc": true,
+              "displayName": "CPU Cores"
+            }
+          ]
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "topk(10, sum(rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m])) by (namespace, pod))",
+            "format": "table",
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "A"
+          }
+        ],
+        "title": "Top 10 CPU Consumers (Pods)",
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "includeByName": {},
+              "indexByName": {},
+              "renameByName": {}
+            }
+          }
+        ],
+        "type": "table"
+      },
+      {
+        "datasource": null,
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "custom": {
+              "align": "left",
+              "cellOptions": {
+                "type": "auto"
+              },
+              "inspect": false
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Memory"
+                },
+                {
+                  "id": "unit",
+                  "value": "bytes"
+                },
+                {
+                  "id": "decimals",
+                  "value": 2
+                },
+                {
+                  "id": "custom.align",
+                  "value": "right"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 120
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "namespace"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Namespace"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 150
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "pod"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Pod"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 300
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 31
+        },
+        "id": 13,
+        "options": {
+          "cellHeight": "sm",
+          "footer": {
+            "countRows": false,
+            "fields": "",
+            "reducer": [
+              "sum"
+            ],
+            "show": false
+          },
+          "showHeader": true,
+          "sortBy": [
+            {
+              "desc": true,
+              "displayName": "Memory"
+            }
+          ]
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "datasource": null,
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "topk(10, sum(container_memory_usage_bytes{container!=\"\",container!=\"POD\"}) by (namespace, pod))",
+            "format": "table",
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "A"
+          }
+        ],
+        "title": "Top 10 Memory Consumers (Pods)",
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "includeByName": {},
+              "indexByName": {},
+              "renameByName": {}
+            }
+          }
+        ],
+        "type": "table"
+      }
+    ]
+}

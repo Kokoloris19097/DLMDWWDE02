@@ -47,20 +47,248 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-resources
+  name: grafana-dashboard-cluster
   namespace: {{ .Values.grafana.namespace }}
   labels:
     app: grafana
     component: monitoring
+    grafana_dashboard: "1"
 data:
-  resources-overview.json: |
+  cluster-overview.json: |
     {
       "dashboard": {
-        "title": "Kubernetes Resources Overview",
+        "title": "Cluster Resources Overview",
         "timezone": "browser",
         "schemaVersion": 16,
         "refresh": "30s",
-        "tags": ["kubernetes", "resources"],
+        "tags": ["kubernetes", "cluster", "overview"],
+        "panels": [
+          {
+            "id": 1,
+            "title": "Total Cluster CPU Usage",
+            "type": "stat",
+            "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m]))",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "short",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"value": 0, "color": "green"},
+                    {"value": 2, "color": "yellow"},
+                    {"value": 4, "color": "red"}
+                  ]
+                }
+              }
+            },
+            "options": {
+              "colorMode": "background",
+              "graphMode": "area",
+              "textMode": "value"
+            }
+          },
+          {
+            "id": 2,
+            "title": "Total Cluster Memory (GB)",
+            "type": "stat",
+            "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(container_memory_usage_bytes{container!=\"\"}) / 1024 / 1024 / 1024",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "decgbytes",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"value": 0, "color": "green"},
+                    {"value": 8, "color": "yellow"},
+                    {"value": 16, "color": "red"}
+                  ]
+                }
+              }
+            },
+            "options": {
+              "colorMode": "background",
+              "graphMode": "area"
+            }
+          },
+          {
+            "id": 3,
+            "title": "Total Pods",
+            "type": "stat",
+            "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+            "targets": [
+              {
+                "expr": "count(container_last_seen{container!=\"\"})",
+                "refId": "A"
+              }
+            ],
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none"
+            }
+          },
+          {
+            "id": 4,
+            "title": "Total Network Traffic (MB/s)",
+            "type": "stat",
+            "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(rate(container_network_receive_bytes_total[5m]) + rate(container_network_transmit_bytes_total[5m])) / 1024 / 1024",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "MBs"
+              }
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "area"
+            }
+          },
+          {
+            "id": 5,
+            "title": "CPU Usage by Namespace",
+            "type": "timeseries",
+            "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m])) by (namespace)",
+                "legendFormat": "{{ `{{namespace}}` }}",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "short",
+                "color": {"mode": "palette-classic"}
+              }
+            }
+          },
+          {
+            "id": 6,
+            "title": "Memory Usage by Namespace",
+            "type": "timeseries",
+            "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(container_memory_usage_bytes{container!=\"\"}) by (namespace) / 1024 / 1024 / 1024",
+                "legendFormat": "{{ `{{namespace}}` }}",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "decgbytes",
+                "color": {"mode": "palette-classic"}
+              }
+            }
+          },
+          {
+            "id": 7,
+            "title": "Network Traffic by Namespace",
+            "type": "timeseries",
+            "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(container_network_receive_bytes_total[5m]) + rate(container_network_transmit_bytes_total[5m])) by (namespace) / 1024 / 1024",
+                "legendFormat": "{{ `{{namespace}}` }}",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "MBs"
+              }
+            }
+          },
+          {
+            "id": 8,
+            "title": "Disk I/O by Namespace",
+            "type": "timeseries",
+            "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(container_fs_reads_bytes_total[5m]) + rate(container_fs_writes_bytes_total[5m])) by (namespace) / 1024 / 1024",
+                "legendFormat": "{{ `{{namespace}}` }}",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "MBs"
+              }
+            }
+          },
+          {
+            "id": 9,
+            "title": "Resource Distribution",
+            "type": "piechart",
+            "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m])) by (namespace)",
+                "legendFormat": "{{ `{{namespace}}` }}",
+                "refId": "A"
+              }
+            ],
+            "options": {
+              "legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]}
+            }
+          },
+          {
+            "id": 10,
+            "title": "Top 10 CPU Consumers",
+            "type": "table",
+            "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "topk(10, sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m])) by (pod, namespace))",
+                "refId": "A",
+                "format": "table",
+                "instant": true
+              }
+            ],
+            "transformations": [
+              {"id": "organize", "options": {"excludeByName": {"Time": true}}}
+            ]
+          }
+        ]
+      }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-messaging
+  namespace: {{ .Values.grafana.namespace }}
+  labels:
+    app: grafana
+    component: monitoring
+    grafana_dashboard: "1"
+data:
+  messaging-namespace.json: |
+    {
+      "dashboard": {
+        "title": "Messaging Namespace (Kafka)",
+        "timezone": "browser",
+        "schemaVersion": 16,
+        "refresh": "30s",
+        "tags": ["kafka", "messaging", "namespace"],
         "panels": [
           {
             "id": 1,
@@ -102,105 +330,356 @@ data:
           },
           {
             "id": 3,
-            "title": "Network Traffic by Pod",
-            "type": "timeseries",
-            "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+            "title": "Kafka Broker CPU",
+            "type": "stat",
+            "gridPos": {"x": 0, "y": 16, "w": 6, "h": 4},
             "targets": [
               {
-                "expr": "sum(rate(container_network_receive_bytes_total{container!=\"\")}[5m])) by (pod) / 1024 / 1024",
+                "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"messaging\",pod=~\"kafka-broker.*\"}[5m]))",
+                "refId": "A"
+              }
+            ],
+            "options": {
+              "colorMode": "background"
+            }
+          },
+          {
+            "id": 4,
+            "title": "Kafka Controller CPU",
+            "type": "stat",
+            "gridPos": {"x": 6, "y": 16, "w": 6, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"messaging\",pod=~\"kafka-controller.*\"}[5m]))",
+                "refId": "A"
+              }
+            ],
+            "options": {
+              "colorMode": "background"
+            }
+          },
+          {
+            "id": 5,
+            "title": "Kafka Broker Memory (MB)",
+            "type": "stat",
+            "gridPos": {"x": 12, "y": 16, "w": 6, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(container_memory_usage_bytes{namespace=\"messaging\",pod=~\"kafka-broker.*\"}) / 1024 / 1024",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {"unit": "decmbytes"}
+            },
+            "options": {
+              "colorMode": "background"
+            }
+          },
+          {
+            "id": 6,
+            "title": "Kafka Network (MB/s)",
+            "type": "stat",
+            "gridPos": {"x": 18, "y": 16, "w": 6, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(rate(container_network_receive_bytes_total{namespace=\"messaging\"}[5m]) + rate(container_network_transmit_bytes_total{namespace=\"messaging\"}[5m])) / 1024 / 1024",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {"unit": "MBs"}
+            },
+            "options": {
+              "colorMode": "value"
+            }
+          }
+        ]
+      }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-api
+  namespace: {{ .Values.grafana.namespace }}
+  labels:
+    app: grafana
+    component: monitoring
+    grafana_dashboard: "1"
+data:
+  api-namespace.json: |
+    {
+      "dashboard": {
+        "title": "API Namespace (FastAPI)",
+        "timezone": "browser",
+        "schemaVersion": 16,
+        "refresh": "30s",
+        "tags": ["fastapi", "api", "namespace"],
+        "panels": [
+          {
+            "id": 1,
+            "title": "FastAPI CPU Usage",
+            "type": "timeseries",
+            "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"api\",container!=\"\"}[5m])) by (pod)",
+                "legendFormat": "{{ `{{pod}}` }}",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "title": "FastAPI Memory Usage",
+            "type": "timeseries",
+            "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(container_memory_usage_bytes{namespace=\"api\",container!=\"\"}) by (pod) / 1024 / 1024",
+                "legendFormat": "{{ `{{pod}}` }}",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {"unit": "decmbytes"}
+            }
+          },
+          {
+            "id": 3,
+            "title": "Request Network Traffic",
+            "type": "timeseries",
+            "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(container_network_receive_bytes_total{namespace=\"api\"}[5m])) by (pod) / 1024 / 1024",
                 "legendFormat": "{{ `{{pod}} RX` }}",
                 "refId": "A"
               },
               {
-                "expr": "sum(rate(container_network_transmit_bytes_total{container!=\"\")}[5m])) by (pod) / 1024 / 1024",
+                "expr": "sum(rate(container_network_transmit_bytes_total{namespace=\"api\"}[5m])) by (pod) / 1024 / 1024",
                 "legendFormat": "{{ `{{pod}} TX` }}",
                 "refId": "B"
               }
             ],
             "fieldConfig": {
-              "defaults": {
-                "unit": "MBs",
-                "color": {"mode": "palette-classic"}
+              "defaults": {"unit": "MBs"}
+            }
+          }
+        ]
+      }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-default
+  namespace: {{ .Values.grafana.namespace }}
+  labels:
+    app: grafana
+    component: monitoring
+    grafana_dashboard: "1"
+data:
+  default-namespace.json: |
+    {
+      "dashboard": {
+        "title": "Default Namespace (PostgreSQL)",
+        "timezone": "browser",
+        "schemaVersion": 16,
+        "refresh": "30s",
+        "tags": ["postgresql", "database", "namespace"],
+        "panels": [
+          {
+            "id": 1,
+            "title": "PostgreSQL CPU Usage",
+            "type": "timeseries",
+            "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\",pod=~\"postgresql.*\"}[5m])) by (pod)",
+                "legendFormat": "{{ `{{pod}}` }}",
+                "refId": "A"
               }
+            ]
+          },
+          {
+            "id": 2,
+            "title": "PostgreSQL Memory Usage",
+            "type": "timeseries",
+            "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(container_memory_usage_bytes{namespace=\"default\",pod=~\"postgresql.*\"}) by (pod) / 1024 / 1024",
+                "legendFormat": "{{ `{{pod}}` }}",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {"unit": "decmbytes"}
             }
           },
           {
-            "id": 4,
-            "title": "Disk I/O by Pod",
+            "id": 3,
+            "title": "PostgreSQL Disk I/O",
             "type": "timeseries",
-            "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+            "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
             "targets": [
               {
-                "expr": "sum(rate(container_fs_reads_bytes_total{container!=\"\")}[5m])) by (pod) / 1024 / 1024",
+                "expr": "sum(rate(container_fs_reads_bytes_total{namespace=\"default\",pod=~\"postgresql.*\"}[5m])) by (pod) / 1024 / 1024",
                 "legendFormat": "{{ `{{pod}} Read` }}",
                 "refId": "A"
               },
               {
-                "expr": "sum(rate(container_fs_writes_bytes_total{container!=\"\")}[5m])) by (pod) / 1024 / 1024",
+                "expr": "sum(rate(container_fs_writes_bytes_total{namespace=\"default\",pod=~\"postgresql.*\"}[5m])) by (pod) / 1024 / 1024",
                 "legendFormat": "{{ `{{pod}} Write` }}",
                 "refId": "B"
               }
             ],
             "fieldConfig": {
-              "defaults": {
-                "unit": "MBs",
-                "color": {"mode": "palette-classic"}
+              "defaults": {"unit": "MBs"}
+            }
+          },
+          {
+            "id": 4,
+            "title": "Disk Write Activity (Indicator)",
+            "type": "stat",
+            "gridPos": {"x": 0, "y": 16, "w": 12, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(rate(container_fs_writes_bytes_total{namespace=\"default\",pod=~\"postgresql.*\"}[5m])) / 1024 / 1024",
+                "refId": "A"
               }
+            ],
+            "fieldConfig": {
+              "defaults": {"unit": "MBs"}
+            },
+            "options": {
+              "colorMode": "background"
             }
           },
           {
             "id": 5,
-            "title": "CPU by Namespace",
-            "type": "piechart",
-            "gridPos": {"x": 0, "y": 16, "w": 8, "h": 8},
-            "targets": [
-              {
-                "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\")}[5m])) by (namespace)",
-                "legendFormat": "{{ `{{namespace}}` }}",
-                "refId": "A"
-              }
-            ],
-            "options": {
-              "legend": {"displayMode": "table", "placement": "right"}
-            }
-          },
-          {
-            "id": 6,
-            "title": "Memory by Namespace",
-            "type": "piechart",
-            "gridPos": {"x": 8, "y": 16, "w": 8, "h": 8},
-            "targets": [
-              {
-                "expr": "sum(container_memory_usage_bytes{container!=\"\"}) by (namespace) / 1024 / 1024 / 1024",
-                "legendFormat": "{{ `{{namespace}}` }}",
-                "refId": "A"
-              }
-            ],
-            "options": {
-              "legend": {"displayMode": "table", "placement": "right"}
-            },
-            "fieldConfig": {
-              "defaults": {
-                "unit": "decgbytes"
-              }
-            }
-          },
-          {
-            "id": 7,
-            "title": "Pod Count by Namespace",
+            "title": "Network Traffic",
             "type": "stat",
-            "gridPos": {"x": 16, "y": 16, "w": 8, "h": 8},
+            "gridPos": {"x": 12, "y": 16, "w": 12, "h": 4},
             "targets": [
               {
-                "expr": "count(container_last_seen{container!=\"\"}) by (namespace)",
-                "legendFormat": "{{ `{{namespace}}` }}",
+                "expr": "sum(rate(container_network_receive_bytes_total{namespace=\"default\",pod=~\"postgresql.*\"}[5m]) + rate(container_network_transmit_bytes_total{namespace=\"default\",pod=~\"postgresql.*\"}[5m])) / 1024 / 1024",
                 "refId": "A"
               }
             ],
+            "fieldConfig": {
+              "defaults": {"unit": "MBs"}
+            },
             "options": {
-              "colorMode": "background",
-              "graphMode": "none",
-              "textMode": "value_and_name"
+              "colorMode": "value"
+            }
+          }
+        ]
+      }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-monitoring
+  namespace: {{ .Values.grafana.namespace }}
+  labels:
+    app: grafana
+    component: monitoring
+    grafana_dashboard: "1"
+data:
+  monitoring-namespace.json: |
+    {
+      "dashboard": {
+        "title": "Monitoring Namespace (Prometheus & Grafana)",
+        "timezone": "browser",
+        "schemaVersion": 16,
+        "refresh": "30s",
+        "tags": ["monitoring", "prometheus", "grafana"],
+        "panels": [
+          {
+            "id": 1,
+            "title": "Prometheus CPU",
+            "type": "timeseries",
+            "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"monitoring\",pod=~\"prometheus.*\"}[5m]))",
+                "legendFormat": "Prometheus",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "title": "Grafana CPU",
+            "type": "timeseries",
+            "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"monitoring\",pod=~\"grafana.*\"}[5m]))",
+                "legendFormat": "Grafana",
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "title": "Prometheus Memory",
+            "type": "stat",
+            "gridPos": {"x": 0, "y": 8, "w": 12, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(container_memory_usage_bytes{namespace=\"monitoring\",pod=~\"prometheus.*\"}) / 1024 / 1024",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {"unit": "decmbytes"}
+            },
+            "options": {
+              "colorMode": "background"
+            }
+          },
+          {
+            "id": 4,
+            "title": "Grafana Memory",
+            "type": "stat",
+            "gridPos": {"x": 12, "y": 8, "w": 12, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(container_memory_usage_bytes{namespace=\"monitoring\",pod=~\"grafana.*\"}) / 1024 / 1024",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {"unit": "decmbytes"}
+            },
+            "options": {
+              "colorMode": "background"
+            }
+          },
+          {
+            "id": 5,
+            "title": "Prometheus TSDB Size",
+            "type": "stat",
+            "gridPos": {"x": 0, "y": 12, "w": 24, "h": 4},
+            "targets": [
+              {
+                "expr": "sum(container_fs_usage_bytes{namespace=\"monitoring\",pod=~\"prometheus.*\"}) / 1024 / 1024 / 1024",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {"unit": "decgbytes"}
+            },
+            "options": {
+              "colorMode": "value"
             }
           }
         ]
@@ -290,8 +769,18 @@ spec:
         configMap:
           name: grafana-dashboards-config
       - name: dashboards
-        configMap:
-          name: grafana-dashboard-resources
+        projected:
+          sources:
+          - configMap:
+              name: grafana-dashboard-cluster
+          - configMap:
+              name: grafana-dashboard-messaging
+          - configMap:
+              name: grafana-dashboard-api
+          - configMap:
+              name: grafana-dashboard-default
+          - configMap:
+              name: grafana-dashboard-monitoring
 
 ---
 apiVersion: v1
