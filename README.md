@@ -1,5 +1,5 @@
 # DLMDWWDE02
-Master Data Engineering - System, was in der Lage ist, kontinuierlich massive Datenmengen auf zunehmen, diese auf effiziente Weise zu speichern, zu prozessieren, zu aggregieren, und für die direkte Nutzung  in einer Echtzeit-Reporting Applikation zur Verfügung zu stellen
+Data Engineering - System, was in der Lage ist, kontinuierlich massive Datenmengen auf zunehmen, diese auf effiziente Weise zu speichern, zu prozessieren, zu aggregieren, und für die direkte Nutzung  in einer Echtzeit-Reporting Applikation zur Verfügung zu stellen
 
 ## Requirements
 - Docker Engine
@@ -73,6 +73,13 @@ Desweitern wird ein Monitoring durch Prometheus und Grafana eingeplant. Promethe
 
 ### K8s-Ressourcen
 ![K8s-Ressourcen](doku/K8s-Ressourcen.jpg)
+
+## Weitere Dokumentationen
+
+- [Monitoring & Prometheus](monitoring/README.md)
+- [Sensor Simulator](simulator/README.md)
+- [Test Suite & Testarchitektur](tests/README.md)
+
 
 ## Inbetriebnahme
 

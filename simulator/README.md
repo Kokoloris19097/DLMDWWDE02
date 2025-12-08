@@ -4,12 +4,8 @@ Python-Skript zur Simulation von 5 verschiedenen Sensoren, die kontinuierlich Te
 
 ## Features
 
-- **5 verschiedene Sensoren** mit realistischen Charakteristiken:
-  - `sensor-datacenter-rack-01` (Datacenter Rack)
-  - `sensor-datacenter-rack-02` (Datacenter Rack)
-  - `sensor-server-room-01` (Server Room)
-  - `sensor-cooling-unit-01` (Cooling Unit)
-  - `sensor-storage-area-01` (Storage Area)
+- **n verschiedene Sensoren** mit realistischen Charakteristiken:
+    - Unterschiedliche Basiswerte
 
 - **Realistische Datengenerierung**:
   - Natürliche Werteschwankungen mit Drift
@@ -38,27 +34,14 @@ pip install -r requirements.txt
 
 ## Verwendung
 
-### Standard (FastAPI unter localhost:8000)
+### Standard
 ```powershell
 python sensor_simulator.py
 ```
 
 ### Mit benutzerdefinierten Parametern
 ```powershell
-# Andere URL
-python sensor_simulator.py --url http://localhost:30080
-
-# Anderes Intervall (z.B. alle 5 Sekunden)
-python sensor_simulator.py --interval 5.0
-
-# Beides kombinieren
-python sensor_simulator.py --url http://localhost:30080 --interval 1.0
-```
-
-### Mit Port-Forwarding
-Wenn du das `port-forward.ps1` Skript verwendest:
-```powershell
-python sensor_simulator.py --url http://localhost:30080
+python sensor_simulator.py --url <NEW URL[str]> --interval <NEW INTERVAL[double]> --sensors <NUMBER OF SENSORS[int]>
 ```
 
 ## Parameter
@@ -67,20 +50,11 @@ python sensor_simulator.py --url http://localhost:30080
 |-----------|----------|--------------|
 | `--url` | `http://localhost:8000` | FastAPI Base-URL |
 | `--interval` | `2.0` | Intervall zwischen Messungen in Sekunden |
+| `--sensors` | 5 | Anzahl Sensoren die Simuliert werden sollen |
 
 ## Beenden
 
 Mit `Ctrl+C` wird der Simulator sauber beendet und zeigt finale Statistiken an:
-
-```
-============================================================
-Statistiken:
-  Laufzeit: 0:05:30
-  Erfolgreich gesendet: 825
-  Fehlgeschlagen: 0
-  Rate: 2.50 Nachrichten/Sekunde
-============================================================
-```
 
 ## Troubleshooting
 

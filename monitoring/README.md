@@ -20,12 +20,8 @@ kubectl port-forward -n monitoring svc/prometheus 9090:9090
 ### 2. Im Browser öffnen
 **http://localhost:9090**
 
-### 3. Targets prüfen
-Gehe zu **Status → Targets** und prüfe ob diese UP sind:
-- ✅ `prometheus` (Self-Monitoring)
-- ✅ `kubernetes-apiservers` (Cluster-Metriken)
-- ✅ `kubernetes-cadvisor` (Container-Ressourcen)
-- ✅ `kubernetes-kubelet` (Pod-Status & Kubelet)
+### Alternativ das Grafana Dashboard verwenden
+**http://localhost:3000** (Standard Login: `admin` / `admin`)
 
 ## Häufige Queries
 
@@ -106,15 +102,3 @@ sum(rate(container_fs_reads_bytes_total[5m])) by (pod) / 1024 / 1024
 # Disk Write pro Pod (MB/s)
 sum(rate(container_fs_writes_bytes_total[5m])) by (pod) / 1024 / 1024
 ```
-
-## Konfiguration
-
-- **Scrape Interval**: 15 Sekunden
-- **Retention**: 15 Tage
-- **Storage**: 10 GB
-
-Änderungen in: `helm-charts/system-cluster/values.yaml` (Section `prometheus`)
-
-## Weitere Informationen
-
-Siehe `prometheus-queries.md` für erweiterte Queries und `README.md` für vollständige Dokumentation.
