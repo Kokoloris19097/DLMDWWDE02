@@ -287,3 +287,25 @@ prometheus:
   service:
     type: ClusterIP
     port: 9090
+
+# Grafana Visualization Configuration
+grafana:
+  namespace: monitoring
+  image:
+    repository: grafana/grafana
+    tag: "11.4.0"
+    pullPolicy: IfNotPresent
+  adminUser: admin
+  adminPassword: admin  # Ändere das in Produktion!
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+  storage:
+    size: "5Gi"
+  service:
+    type: ClusterIP
+    port: 3000
