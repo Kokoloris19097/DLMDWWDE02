@@ -1,254 +1,200 @@
-# Wichtige PromQL Queries für Monitoring
+# Erweiterte PromQL Queries - Ressourcen-Monitoring
 
-## System Health
+## Wichtige Konzepte
 
-### Kafka Cluster Health
+### Container-Metriken
+Alle Metriken stammen von Kubernetes cAdvisor und Kubelet:
+- `container_cpu_usage_seconds_total` - CPU-Zeit (counter, cumulative)
+- `container_memory_usage_bytes` - Aktueller Memory in Bytes
+- `container_memory_working_set_bytes` - Genutzter Memory (ohne Cache)
+- `container_network_receive_bytes_total` - Netzwerk empfangen
+- `container_fs_reads_bytes_total` - Disk gelesen
+
+### Rate vs Counter
+- **Counter** (steigt nur): `container_cpu_usage_seconds_total` → mit `rate()` abfragen
+- **Gauge** (kann sich ändern): `container_memory_usage_bytes` → direkt abfragen
+
+---
+
+## CPU Monitoring
+
+### CPU pro Pod (prozentual)
 ```promql
-# Aktiver Controller (sollte genau 1 sein)
-kafka_controller_kafkacontroller_activecontrollercount
-
-# Anzahl Broker im Cluster
-count(up{job="kafka-broker"} == 1)
-
-# Under-Replicated Partitions (sollte 0 sein)
-kafka_server_replicamanager_underreplicatedpartitions
+# CPU-Auslastung in Prozent (relativ zu requested CPU)
+(sum(rate(container_cpu_usage_seconds_total[5m])) by (pod, namespace) /
+ sum(kube_pod_container_resource_requests{resource="cpu"}) by (pod, namespace)) * 100
 ```
 
-### PostgreSQL Health
+### CPU-intensivste Pods
 ```promql
-# Datenbankgröße in GB
-pg_database_size / 1024 / 1024 / 1024
+# Top 10 CPU-Consumer
+topk(10, sum(rate(container_cpu_usage_seconds_total[5m])) by (pod, namespace))
 
-# Aktive Connections
-pg_stat_activity_count
-
-# Anzahl Rows in analytics_data
-pg_analytics_data_total_rows
+# Pods über 1 CPU
+sum(rate(container_cpu_usage_seconds_total[5m])) by (pod, namespace) > 1
 ```
 
-### FastAPI Health
+### CPU-Trends
 ```promql
-# FastAPI ist erreichbar
-up{job="fastapi"} == 1
+# CPU-Anstieg in den letzten 5 Minuten
+rate(container_cpu_usage_seconds_total[5m]) - rate(container_cpu_usage_seconds_total[10m])
 
-# Aktive HTTP Requests
-http_requests_in_progress
+# 1-Stunden-Durchschnitt vs 5-Minuten-Durchschnitt
+rate(container_cpu_usage_seconds_total[1h]) vs rate(container_cpu_usage_seconds_total[5m])
 ```
 
-## Performance Metriken
+---
 
-### Kafka Throughput
+## Memory Monitoring
+
+### Memory pro Pod
 ```promql
-# Messages pro Sekunde (alle Topics)
-sum(rate(kafka_server_brokertopicmetrics_messagesinpersec_total[5m]))
+# Memory in MB
+sum(container_memory_usage_bytes) by (pod, namespace) / 1024 / 1024
 
-# Bytes In Rate (MB/s)
-sum(rate(kafka_server_brokertopicmetrics_bytesinpersec_total[5m])) / 1024 / 1024
+# Working Set Memory (echter Speicherverbrauch)
+sum(container_memory_working_set_bytes) by (pod, namespace) / 1024 / 1024
 
-# Bytes Out Rate (MB/s)
-sum(rate(kafka_server_brokertopicmetrics_bytesoutpersec_total[5m])) / 1024 / 1024
-
-# Messages pro Topic
-sum by (topic) (rate(kafka_server_brokertopicmetrics_messagesinpersec_total{topic!=""}[5m]))
+# Cache Memory (kann freigegeben werden)
+sum(container_memory_usage_bytes - container_memory_working_set_bytes) by (pod) / 1024 / 1024
 ```
 
-### FastAPI Performance
+### Memory-Limits vs Nutzung
 ```promql
-# Request Rate gesamt
-sum(rate(http_requests_total[5m]))
+# Memory-Auslastung in Prozent (vs Limit)
+(sum(container_memory_usage_bytes) by (pod) /
+ sum(kube_pod_container_resource_limits{resource="memory"}) by (pod)) * 100
 
-# Request Rate nach Endpoint
-sum by (handler) (rate(http_requests_total[5m]))
-
-# 95th Percentile Latency
-histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
-
-# 99th Percentile Latency
-histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
-
-# Error Rate (5xx Responses)
-sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
-
-# Ingestion Counter (Custom Metric)
-sum(rate(sensor_data_ingestion_total[5m])) by (sensor_id, status)
+# Pods über 80% Memory-Limit
+sum(container_memory_usage_bytes) by (pod) /
+sum(kube_pod_container_resource_limits{resource="memory"}) by (pod) > 0.8
 ```
 
-### Database Performance
+### Memory-Lecks erkennen
 ```promql
-# Query Latency (95th Percentile)
-histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m]))
-
-# Queries pro Sekunde nach Typ
-sum by (query_type) (rate(database_queries_total[5m]))
-
-# Durchschnittliche Temperatur (letzte Stunde)
-pg_analytics_data_avg_temperature
-
-# Durchschnittliche Luftfeuchtigkeit (letzte Stunde)
-pg_analytics_data_avg_humidity
+# Steigende Memory ohne Nutzung-Steigerung (mögliches Leak)
+rate(container_memory_usage_bytes[1h]) > 0 and
+rate(container_network_transmit_bytes_total[1h]) == 0
 ```
 
-## Ressourcen-Monitoring
+---
 
-### Kafka Memory
+## Network Monitoring
+
+### Network Bandbreite
 ```promql
-# Heap Memory Usage (%)
-(jvm_memory_heap_used_bytes / jvm_memory_heap_max_bytes) * 100
+# Empfangene Daten pro Pod (MB/s)
+sum(rate(container_network_receive_bytes_total[5m])) by (pod) / 1024 / 1024
 
-# Non-Heap Memory
-jvm_memory_nonheap_used_bytes
+# Gesendete Daten pro Pod (MB/s)
+sum(rate(container_network_transmit_bytes_total[5m])) by (pod) / 1024 / 1024
 
-# Heap Memory Usage nach Broker
-jvm_memory_heap_used_bytes{job="kafka-broker"} / 1024 / 1024 / 1024
+# Gesamte Cluster-Bandbreite (MB/s)
+sum(rate(container_network_receive_bytes_total[5m]) + rate(container_network_transmit_bytes_total[5m])) / 1024 / 1024
 ```
 
-### Kafka GC Activity
+### Top Network-Consumer
 ```promql
-# GC Collections pro Sekunde
-sum(rate(jvm_gc_collection_count_total[5m])) by (gc)
+# Pods mit meistem Traffic
+topk(5, sum(rate(container_network_receive_bytes_total[5m]) +
+             rate(container_network_transmit_bytes_total[5m])) by (pod)) / 1024 / 1024
 
-# GC Time pro Sekunde (ms)
-sum(rate(jvm_gc_collection_time_ms_total[5m])) by (gc)
-
-# GC Overhead (% der Zeit in GC)
-(sum(rate(jvm_gc_collection_time_ms_total[5m])) / 1000) / sum(rate(jvm_runtime_uptime_seconds[5m])) * 100
+# Kafka-Network-Traffic
+sum(rate(container_network_receive_bytes_total{pod=~"kafka.*"}[5m])) / 1024 / 1024
 ```
 
-### Kubernetes Resources
+---
+
+## Disk I/O Monitoring
+
+### Disk Read/Write Rate
 ```promql
-# Pod Memory Usage (MB)
-sum(container_memory_usage_bytes{namespace=~"messaging|api|data"}) by (pod) / 1024 / 1024
+# Disk Read in MB/s
+sum(rate(container_fs_reads_bytes_total[5m])) by (pod) / 1024 / 1024
 
-# Pod CPU Usage (cores)
-sum(rate(container_cpu_usage_seconds_total{namespace=~"messaging|api|data"}[5m])) by (pod)
+# Disk Write in MB/s
+sum(rate(container_fs_writes_bytes_total[5m])) by (pod) / 1024 / 1024
 
-# Pod Restart Count
-sum(kube_pod_container_status_restarts_total{namespace=~"messaging|api|data"}) by (pod)
+# Gesamter Disk I/O
+sum(rate(container_fs_reads_bytes_total[5m]) + rate(container_fs_writes_bytes_total[5m])) / 1024 / 1024
 ```
 
-## Data Pipeline Metriken
-
-### End-to-End Data Flow
+### Top Disk-Consumer
 ```promql
-# Kafka Publish Success Rate
-sum(rate(kafka_messages_published_total{status="success"}[5m]))
+# Pods mit meistem Disk I/O
+topk(5, sum(rate(container_fs_reads_bytes_total[5m]) +
+             rate(container_fs_writes_bytes_total[5m])) by (pod)) / 1024 / 1024
 
-# Kafka Publish Error Rate
-sum(rate(kafka_messages_published_total{status="error"}[5m]))
-
-# Sensor Readings pro Sensor (letzte 5 Min)
-sum by (sensor_id) (rate(sensor_data_ingestion_total{status="success"}[5m]))
-
-# Data Latency (Ingestion)
-histogram_quantile(0.95, rate(sensor_data_ingestion_duration_seconds_bucket[5m]))
+# PostgreSQL-Disk-Activity
+sum(rate(container_fs_reads_bytes_total{pod=~"postgresql.*"}[5m]) +
+    rate(container_fs_writes_bytes_total{pod=~"postgresql.*"}[5m])) / 1024 / 1024
 ```
 
-### PostgreSQL Data Growth
+---
+
+## Cluster-weites Monitoring
+
+### Gesamt-Ressourcennutzung
 ```promql
-# Table Size Growth (MB/hour)
-rate(pg_table_size[1h]) / 1024 / 1024
+# Gesamte CPU (alle Pods)
+sum(rate(container_cpu_usage_seconds_total[5m]))
 
-# New Rows per Hour
-rate(pg_analytics_data_total_rows[1h]) * 3600
+# Gesamter Memory (alle Pods)
+sum(container_memory_usage_bytes) / 1024 / 1024 / 1024
 
-# Latest Timestamp pro Sensor (seconds ago)
-time() - pg_analytics_data_latest_timestamp
+# Gesamte Network-Bandbreite
+sum(rate(container_network_receive_bytes_total[5m]) +
+    rate(container_network_transmit_bytes_total[5m])) / 1024 / 1024
 ```
 
-## Alerting Queries
-
-### Critical Alerts
+### Namespace-Aufteilung
 ```promql
-# Kein aktiver Kafka Controller
-kafka_controller_kafkacontroller_activecontrollercount == 0
+# CPU pro Namespace
+sum(rate(container_cpu_usage_seconds_total[5m])) by (namespace)
 
-# Kafka Broker Down
-count(up{job="kafka-broker"} == 1) < 2
+# Memory pro Namespace
+sum(container_memory_usage_bytes) by (namespace) / 1024 / 1024 / 1024
 
-# PostgreSQL Down
-up{job="postgresql"} == 0
-
-# FastAPI Down
-up{job="fastapi"} == 0
+# Pod-Count pro Namespace
+count(container_last_seen) by (namespace)
 ```
 
-### Warning Alerts
+### Anomalie-Erkennung
 ```promql
-# High Error Rate (> 5%)
-(sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.05
+# Pods mit ungewöhnlich hohem CPU-Verbrauch (>2 Std. Durchschnitt)
+rate(container_cpu_usage_seconds_total[5m]) > 2 * rate(container_cpu_usage_seconds_total[2h])
 
-# High GC Time (> 10% der Zeit)
-(sum(rate(jvm_gc_collection_time_ms_total[5m])) / 1000) / sum(rate(jvm_runtime_uptime_seconds[5m])) * 100 > 10
-
-# High Heap Usage (> 85%)
-(jvm_memory_heap_used_bytes / jvm_memory_heap_max_bytes) * 100 > 85
-
-# Under-Replicated Partitions
-kafka_server_replicamanager_underreplicatedpartitions > 0
-
-# Stale Data (keine neuen Daten seit 5 Min)
-time() - pg_analytics_data_latest_timestamp > 300
+# Plötzliche Memory-Spitzen
+container_memory_usage_bytes / avg_over_time(container_memory_usage_bytes[1h]) > 2
 ```
 
-## Dashboard Panels
+---
 
-### Panel 1: Kafka Message Rate
-```promql
-sum(rate(kafka_server_brokertopicmetrics_messagesinpersec_total[5m])) by (topic)
-```
-**Typ**: Graph
-**Interval**: 5m
-**Legende**: {{topic}}
+## Alerts definieren
 
-### Panel 2: FastAPI Request Latency
-```promql
-histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))
-histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
-histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
-```
-**Typ**: Graph
-**Legende**: p50, p95, p99
+### Empfohlene Alert-Rules
+```yaml
+groups:
+- name: resource_alerts
+  rules:
+  # CPU Alert
+  - alert: HighCPUUsage
+    expr: sum(rate(container_cpu_usage_seconds_total[5m])) by (pod) > 2
+    for: 5m
+    annotations:
+      summary: "Pod {{ $labels.pod }} has high CPU usage"
 
-### Panel 3: System Health Overview
-```promql
-up{job=~"kafka-broker|fastapi|postgresql"}
-```
-**Typ**: Stat Panel
-**Thresholds**: 0 (Red), 1 (Green)
+  # Memory Alert
+  - alert: HighMemoryUsage
+    expr: sum(container_memory_usage_bytes) by (pod) / 1024 / 1024 / 1024 > 4
+    for: 5m
+    annotations:
+      summary: "Pod {{ $labels.pod }} has high memory usage"
 
-### Panel 4: Sensor Data Growth
-```promql
-pg_analytics_data_total_rows
-```
-**Typ**: Graph
-**Interval**: 1m
-
-### Panel 5: Error Rate
-```promql
-sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
-```
-**Typ**: Gauge
-**Unit**: Percent
-**Thresholds**: 0-1% (Green), 1-5% (Yellow), >5% (Red)
-
-## Nützliche Aggregationen
-
-### Top 10 Sensoren nach Datenmenge
-```promql
-topk(10, pg_analytics_data_rows_by_sensor)
-```
-
-### Durchschnittliche Request-Latenz nach Endpoint (letzte Stunde)
-```promql
-avg_over_time((histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])))[1h:5m])
-```
-
-### Kafka Message Lag Trend
-```promql
-deriv(kafka_server_brokertopicmetrics_messagesinpersec_total[10m])
-```
-
-### PostgreSQL Connection Utilization
-```promql
-pg_stat_activity_count / pg_settings_max_connections * 100
+  # Target Down
+  - alert: PrometheusTargetDown
+    expr: up == 0
+    for: 1m
+    annotations:
+      summary: "Prometheus target {{ $labels.job }} is down"
 ```
