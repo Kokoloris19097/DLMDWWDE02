@@ -699,7 +699,7 @@ class TestPrometheusMetrics:
         assert success, f"Failed to query Prometheus metrics: {output}"
         assert '"status":"success"' in output, f"Prometheus query failed: {output}"
         assert '"result"' in output, f"No results returned: {output}"
-        
+
         # Verify we have actual metric data
         try:
             data = json.loads(output)
@@ -729,7 +729,7 @@ class TestPrometheusMetrics:
 
         assert success, f"Failed to query container metrics: {output}"
         assert '"status":"success"' in output, f"Container metrics query failed: {output}"
-        
+
         try:
             data = json.loads(output)
             assert len(data["data"]["result"]) > 0, "No container CPU metrics found"
@@ -758,7 +758,7 @@ class TestPrometheusMetrics:
 
         assert success, f"Failed to query memory metrics: {output}"
         assert '"status":"success"' in output, f"Memory metrics query failed: {output}"
-        
+
         try:
             data = json.loads(output)
             assert len(data["data"]["result"]) > 0, "No container memory metrics found"
@@ -787,7 +787,7 @@ class TestPrometheusMetrics:
 
         assert success, f"Failed to query namespace metrics: {output}"
         assert '"status":"success"' in output, f"Namespace metrics query failed: {output}"
-        
+
         try:
             data = json.loads(output)
             results = data["data"]["result"]
@@ -817,16 +817,16 @@ class TestPrometheusMetrics:
 
         assert success, f"Failed to query targets: {output}"
         assert '"status":"success"' in output, f"Targets query failed: {output}"
-        
+
         try:
             data = json.loads(output)
             active_targets = data["data"]["activeTargets"]
             assert len(active_targets) > 0, "No active scrape targets found"
-            
+
             # Check that at least some targets are healthy
             healthy_count = sum(1 for t in active_targets if t["health"] == "up")
             assert healthy_count > 0, f"No healthy targets found. Total targets: {len(active_targets)}"
-            
+
         except (json.JSONDecodeError, KeyError) as e:
             pytest.fail(f"Invalid Prometheus targets response: {e}\nOutput: {output}")
 
@@ -881,18 +881,18 @@ class TestGrafanaDatasourceAndDashboards:
         success, output = kubectl(cmd)
 
         assert success, f"Failed to query Grafana datasources: {output}"
-        
+
         try:
             datasources = json.loads(output)
             assert isinstance(datasources, list), "Datasources response should be a list"
             assert len(datasources) > 0, "No datasources configured in Grafana"
-            
+
             # Find Prometheus datasource
             prometheus_ds = next((ds for ds in datasources if ds.get("type") == "prometheus"), None)
             assert prometheus_ds is not None, "No Prometheus datasource found in Grafana"
             assert "prometheus" in prometheus_ds.get("url", "").lower(), \
                 f"Prometheus datasource URL invalid: {prometheus_ds.get('url')}"
-            
+
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid Grafana datasources response: {e}\nOutput: {output}")
 
@@ -916,30 +916,30 @@ class TestGrafanaDatasourceAndDashboards:
         )
         success, output = kubectl(cmd)
         assert success, "Failed to get datasources"
-        
+
         try:
             datasources = json.loads(output)
             prometheus_ds = next((ds for ds in datasources if ds.get("type") == "prometheus"), None)
             assert prometheus_ds is not None, "No Prometheus datasource found"
-            ds_uid = prometheus_ds.get("uid")
-            assert ds_uid, "Datasource UID not found"
-            
-            # Query Prometheus through Grafana datasource proxy
+            ds_id = prometheus_ds.get("id")
+            assert ds_id, "Datasource ID not found"
+
+            # Query Prometheus through Grafana datasource proxy (using ID, not UID)
             query = "up"
             cmd = (
                 f"exec -n {config.MONITORING_NAMESPACE} {grafana_pod} -- "
                 f"curl -s -u admin:admin "
-                f"'http://localhost:3000/api/datasources/proxy/{ds_uid}/api/v1/query?query={query}'"
+                f"'http://localhost:3000/api/datasources/proxy/{ds_id}/api/v1/query?query={query}'"
             )
             success, output = kubectl(cmd)
-            
+
             assert success, f"Failed to query Prometheus via Grafana: {output}"
             assert '"status":"success"' in output, f"Prometheus query via Grafana failed: {output}"
-            
+
             query_result = json.loads(output)
             assert len(query_result.get("data", {}).get("result", [])) > 0, \
                 "No metrics returned from Prometheus via Grafana"
-            
+
         except (json.JSONDecodeError, KeyError, StopIteration) as e:
             pytest.fail(f"Failed to query Prometheus via Grafana: {e}\nOutput: {output}")
 
@@ -964,12 +964,12 @@ class TestGrafanaDatasourceAndDashboards:
         success, output = kubectl(cmd)
 
         assert success, f"Failed to query Grafana dashboards: {output}"
-        
+
         try:
             dashboards = json.loads(output)
             assert isinstance(dashboards, list), "Dashboards response should be a list"
             # Note: May be empty if no dashboards provisioned yet, just verify API works
-            
+
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid Grafana dashboards response: {e}\nOutput: {output}")
 
@@ -994,7 +994,7 @@ class TestGrafanaDatasourceAndDashboards:
         )
         success, output = kubectl(cmd)
         assert success, "Failed to get dashboards"
-        
+
         try:
             dashboards = json.loads(output)
             if len(dashboards) > 0:
@@ -1005,12 +1005,12 @@ class TestGrafanaDatasourceAndDashboards:
                     f"curl -s -u admin:admin http://localhost:3000/api/dashboards/uid/{dashboard_uid}"
                 )
                 success, output = kubectl(cmd)
-                
+
                 assert success, f"Failed to get dashboard: {output}"
                 dashboard_data = json.loads(output)
                 assert "dashboard" in dashboard_data, "Invalid dashboard response"
                 assert "panels" in dashboard_data.get("dashboard", {}), "Dashboard has no panels"
             # If no dashboards, test passes (dashboards are optional)
-            
+
         except (json.JSONDecodeError, KeyError) as e:
             pytest.fail(f"Failed to render dashboard: {e}\nOutput: {output}")

@@ -23,6 +23,7 @@ class TestConfig:
     MESSAGING_NAMESPACE: str = "messaging"
     DATA_NAMESPACE: str = "data"
     API_NAMESPACE: str = "api"
+    MONITORING_NAMESPACE: str = "monitoring"
     KAFKA_TOPIC: str = "analytics-data"
     POSTGRESQL_DB: str = "sensordata"
     POSTGRESQL_TABLE: str = "analytics_data"
@@ -202,7 +203,6 @@ def fastapi_exec(config) -> Callable[[str], Tuple[bool, str]]:
         )
     return execute
 
-
 # =============================================================================
 # POD STATUS HELPERS
 # =============================================================================
@@ -244,6 +244,22 @@ def get_endpoints(config) -> Callable:
         ]
         return run_kubectl(args, config.COMMAND_TIMEOUT)
     return _get_endpoints
+
+
+@pytest.fixture(scope="session")
+def get_pod_names(config) -> Callable:
+    """Get list of pod names in a namespace"""
+    def _get_pod_names(namespace: str) -> list[str]:
+        args = [
+            "-n", namespace,
+            "get", "pods",
+            "-o", "jsonpath={.items[*].metadata.name}"
+        ]
+        success, output = run_kubectl(args, config.COMMAND_TIMEOUT)
+        if not success or not output:
+            return []
+        return output.split()
+    return _get_pod_names
 
 
 # =============================================================================
