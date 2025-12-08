@@ -318,17 +318,34 @@ Bitte manuell installieren:
     Write-Log "INFO" "Starte Port-Forwarding Skript..."
     $portForwardScript = Join-Path $initScriptRoot "port-forward.ps1"
     if (Test-Path $portForwardScript) {
-        & $portForwardScript
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log "ERROR" "Port-Forwarding Skript fehlgeschlagen!"
-            exit 1
-        } else {
-            Write-Log "SUCCESS" "Port-Forwarding aktiv"
-        }
+        Start-Process -FilePath "pwsh.exe" -ArgumentList "-NoExit", "-File", $portForwardScript -WindowStyle Minimized
+        Write-Log "SUCCESS" "Port-Forwarding in neuem Prozess gestartet"
     } else {
         Write-Log "WARN" "port-forward.ps1 nicht gefunden."
     }
     #endregion 6. Port-Forwarding Skript starten
+
+    #region 7. Sensor Simulator starten
+    Write-Log "INFO" "Starte Sensor Simulator..."
+    $simulatorScript = Join-Path $initScriptRoot "simulator\sensor_simulator.py"
+    if (Test-Path $simulatorScript) {
+        # Warte kurz, damit Port-Forwarding Zeit hat zu starten
+        Write-Log "DEBUG" "  Warte 5 Sekunden auf Port-Forwarding..."
+        Start-Sleep -Seconds 5
+
+        # Starte Simulator in neuem Prozess
+        $simulatorArgs = @(
+            $simulatorScript,
+            "--interval", "1.0",
+            "--sensors", "15"
+        )
+
+        Start-Process -FilePath "python" -ArgumentList $simulatorArgs -NoNewWindow
+        Write-Log "SUCCESS" "Sensor Simulator gestartet (15 Sensoren, 1.0s Intervall)"        
+    } else {
+        Write-Log "WARN" "simulator\sensor_simulator.py nicht gefunden."
+    }
+    #endregion 7. Sensor Simulator starten
 }
 finally {
     Set-Location $initScriptRoot
