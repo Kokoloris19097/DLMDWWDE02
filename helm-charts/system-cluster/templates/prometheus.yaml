@@ -32,7 +32,8 @@ data:
           - targets: ['localhost:9090']
 
       # =================================================================
-      # Kubernetes API Server
+      # Kubernetes API Server Metrics
+      # Sammelt Cluster-weite Ressourcen-Metriken
       # =================================================================
       - job_name: 'kubernetes-apiservers'
         kubernetes_sd_configs:
@@ -47,9 +48,32 @@ data:
             regex: default;kubernetes;https
 
       # =================================================================
-      # Kubernetes Nodes (cAdvisor)
+      # Kubernetes Node cAdvisor Metrics
+      # Sammelt Container-Ressourcen (CPU, Memory, Network, Disk)
       # =================================================================
-      - job_name: 'kubernetes-nodes'
+      - job_name: 'kubernetes-cadvisor'
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        metrics_path: /metrics/cadvisor
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+
+      # =================================================================
+      # Kubernetes Kubelet Metrics
+      # Sammelt Kubelet-Performance und Pod-Status
+      # =================================================================
+      - job_name: 'kubernetes-kubelet'
         kubernetes_sd_configs:
           - role: node
         scheme: https
@@ -59,76 +83,12 @@ data:
         relabel_configs:
           - action: labelmap
             regex: __meta_kubernetes_node_label_(.+)
-
-      # =================================================================
-      # Kubernetes Pods (Auto-Discovery)
-      # =================================================================
-      - job_name: 'kubernetes-pods'
-        kubernetes_sd_configs:
-          - role: pod
-        relabel_configs:
-          # Only scrape pods with annotation prometheus.io/scrape: "true"
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-            action: keep
-            regex: true
-          # Use custom port if defined
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_ip]
-            action: replace
-            target_label: __address__
-            regex: ([^;]+);(.+)
-            replacement: $2:$1
-          # Use pod IP if no custom port
-          - source_labels: [__meta_kubernetes_pod_ip]
-            action: replace
-            target_label: __address__
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
             regex: (.+)
-            replacement: $1:80
-          # Use custom path if defined
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-            action: replace
             target_label: __metrics_path__
-            regex: (.+)
-          # Add pod metadata as labels
-          - source_labels: [__meta_kubernetes_namespace]
-            target_label: kubernetes_namespace
-          - source_labels: [__meta_kubernetes_pod_name]
-            target_label: kubernetes_pod_name
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            target_label: app
-          - source_labels: [__meta_kubernetes_pod_label_component]
-            target_label: component
-          - source_labels: [__meta_kubernetes_pod_node_name]
-            target_label: kubernetes_node
-
-      # =================================================================
-      # Kubernetes Services (Endpoints)
-      # =================================================================
-      - job_name: 'kubernetes-services'
-        kubernetes_sd_configs:
-          - role: endpoints
-        relabel_configs:
-          # Only scrape services with annotation prometheus.io/scrape: "true"
-          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
-            action: keep
-            regex: true
-          # Use custom port if defined
-          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_port]
-            action: replace
-            target_label: __address__
-            regex: (.+)
-            replacement: __address__:$1
-          # Use custom path if defined
-          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
-            action: replace
-            target_label: __metrics_path__
-            regex: (.+)
-          # Add service metadata as labels
-          - source_labels: [__meta_kubernetes_namespace]
-            target_label: kubernetes_namespace
-          - source_labels: [__meta_kubernetes_service_name]
-            target_label: kubernetes_service
-          - source_labels: [__meta_kubernetes_pod_name]
-            target_label: kubernetes_pod_name
+            replacement: /api/v1/nodes/$1/proxy/metrics
 
 ---
 apiVersion: apps/v1
