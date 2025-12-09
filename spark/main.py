@@ -3,7 +3,7 @@ from pyspark.sql.functions import col, window, mean, from_json, to_json, struct,
 from pyspark.sql.types import StructType, StringType, DoubleType
 
 KAFKA_BOOTSTRAP = "kafka-broker.messaging.svc.cluster.local:9092"
-SOURCE_TOPIC = "sensor-data"
+SOURCE_TOPIC = "raw-data"
 TARGET_TOPIC = "analytics-data"
 
 # Schema-Definition für Kafka Connect JSON Format
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     df_parsed = df.select(from_json(col("value").cast("string"), schema).alias("data")).select("data.*")
 
     agg = df_parsed \
-        .groupBy(window(col("timestamp"), "10 seconds"), col("sensor_id")) \
+        .groupBy(window(col("timestamp"), "30 seconds"), col("sensor_id")) \
         .agg(
             mean("temperature").alias("temperature"),
             mean("humidity").alias("humidity")
