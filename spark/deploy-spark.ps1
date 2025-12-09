@@ -1,12 +1,10 @@
 ﻿# Apache Spark - Build & Deploy Script
+# DLMDWWDE02 Master Project
 param (
     [switch]$noHelm
 )
-
-Write-Host "`n=== Spark Build & Deploy ===" -ForegroundColor Cyan
-
 # Konfiguration
-$IMAGE_NAME = "spark-app"
+$IMAGE_NAME = "spark"
 $IMAGE_TAG = "latest"
 $LOCAL_IMAGE = "localhost/${IMAGE_NAME}:${IMAGE_TAG}"
 $CLUSTER_NAME = "system-cluster"
@@ -35,8 +33,9 @@ function Write-Log {
     $delay = $((Get-Date) - $starttime).TotalSeconds.ToString("F2")
     Write-Host "[deploy spark $delay s] $Message" -ForegroundColor $color
 }
+Write-Log "INFO" "`n=== Spark Build & Deploy ==="
 try {
-	Push-Location $PSScriptRoot
+    Push-Location $PSScriptRoot
 	# 1. Prüfe ob Podman läuft
 	Write-Log "INFO" "[1/6] Pruefe Podman..."
 	if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
@@ -96,17 +95,22 @@ try {
 	Remove-Item spark-image.tar -ErrorAction SilentlyContinue
 	Write-Log "SUCCESS" "Image in Cluster geladen: ${LOCAL_IMAGE}"
 
-	if (-not $noHelm) {
+	if ($noHelm) {
+        Write-Log "INFO" "[5/6] Überspringe Helm..."
+        Write-Log "INFO" "[6/6] Überspringe status Prüfung..."
+    }else {
+        # 5. Helm Upgrade/Install
         Write-Log "INFO" "[5/6] Deploye mit Helm..."
         Push-Location ..\helm-charts\system-cluster
+
 
         # Prüfe ob Release existiert
         $releaseExists = helm list -q --namespace default | Select-String "^${HELM_RELEASE}$"
         if ($releaseExists) {
-            Write-Log "INFO" "  Upgrade existierendes Release..."
+            Write-Log "INFO" "Upgrade existierendes Release..."
             helm upgrade ${HELM_RELEASE} . --namespace default --wait --timeout=180s
         } else {
-            Write-Log "INFO" "  Installiere neues Release..."
+            Write-Log "INFO" "Installiere neues Release..."
             helm install ${HELM_RELEASE} . --namespace default --create-namespace --wait --timeout=180s
         }
 
@@ -116,34 +120,41 @@ try {
         }
         Write-Log "SUCCESS" "Helm Deployment erfolgreich"
 
-        Write-Log "INFO" "  Pod-Neustart mit neuem Image..."
-        kubectl delete pod -n api -l app=spark --ignore-not-found=true 2>$null
-        Write-Log "INFO" "  Pod wird mit neuem Image neu erstellt"
+        Write-Log "INFO" "Pod-Neustart mit neuem Image..."
+        kubectl delete pod -n data -l app=spark --ignore-not-found=true 2>$null
+        Write-Log "SUCCESS" "Pod wird mit neuem Image neu erstellt"
 
         # 6. Status prüfen
         Write-Log "INFO" "[6/6] Pruefe Deployment-Status..."
         Start-Sleep -Seconds 10
-        kubectl get pods -n api
-        kubectl get svc -n api
-        kubectl get ingress -n api 2>$null
-    } else {
-        Write-Log "INFO" "[5/6] Überspringe Helm..."
-        Write-Log "INFO" "[6/6] Überspringe status Prüfung..."
+        kubectl get pods -n data
+        kubectl get svc -n data
     }
-    Write-Log "SUCCESS" "=== Deployment abgeschlossen ==="
-    Write-Log "INFO" "Naechste Schritte:"
-    Write-Log "INFO" "  1. Logs pruefen: kubectl logs -n api -l app=spark --tail=50"
-    Write-Log "INFO" "  2. Pod-Status: kubectl get pods -n api"
-    Write-Log "INFO" "  3. Health Check: (falls implementiert)"
+    Write-Log "SUCCESS" "`n=== Spark Deployment abgeschlossen ==="
+    # Logs pruefen: kubectl logs -n data -l app=spark --tail=50 -f
+    # Pod-Status: kubectl get pods -n data
+    # Spark UI: kubectl port-forward -n data svc/spark 4040:4040
 }catch {
-	Write-Log "ERROR" "FEHLER: $_"
-	# Bereinige Tar-Datei
-	if (Test-Path spark-image.tar) {
-		Remove-Item spark-image.tar -ErrorAction SilentlyContinue
-		Write-Log "SUCCESS" "Lokales Image spark-image.tar entfernt"
-	}
-	exit 1
+    Write-Log "ERROR" "FEHLER: $_"
+    # Bereinige Tar-Datei
+    if (Test-Path spark-image.tar) {
+        Remove-Item spark-image.tar -ErrorAction SilentlyContinue
+        Write-Log "SUCCESS" "Lokales Image spark-image.tar entfernt"
+    }
+    # Prüfe auf nicht-running spark-Pods und gebe deren Logs aus
+    try {
+        $pods = kubectl get pods -n data -l app=spark -o json | ConvertFrom-Json
+        $badPods = $pods.items | Where-Object { $_.status.phase -ne 'Running' }
+        foreach ($pod in $badPods) {
+            $podName = $pod.metadata.name
+            Write-Log "ERROR" "Pod $podName ist nicht Running (Status: $($pod.status.phase)). Logs:"
+            kubectl logs $podName -n data | ForEach-Object { Write-Host $_ }
+        }
+    } catch {
+        Write-Log "ERROR" "Fehler beim Auslesen der Pod-Logs: $_"
+    }
+    exit 1
 }
 finally {
-	Pop-Location
+    Pop-Location
 }

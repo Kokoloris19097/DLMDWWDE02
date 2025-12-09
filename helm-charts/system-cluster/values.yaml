@@ -84,6 +84,25 @@ fastapi:
       secretName: "fastapi-tls"
 
 
+spark:
+  namespace: data
+  replicaCount: 1
+  image:
+    repository: localhost/spark
+    tag: "latest"
+    pullPolicy: Never
+  resources:
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+  env:
+    KAFKA_BOOTSTRAP_SERVERS: "kafka-broker-0.kafka-broker.messaging.svc.cluster.local:9092,kafka-broker-1.kafka-broker.messaging.svc.cluster.local:9092"
+    SOURCE_TOPIC: "raw-data"
+    TARGET_TOPIC: "analytics-data"
+
 postgresql:
   namespace: data
   replicaCount: 1

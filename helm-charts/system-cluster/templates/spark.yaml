@@ -1,0 +1,68 @@
+---
+# Apache Spark Streaming Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark
+  namespace: {{ .Values.spark.namespace }}
+  labels:
+    app: spark
+    component: processing
+spec:
+  replicas: {{ .Values.spark.replicaCount }}
+  selector:
+    matchLabels:
+      app: spark
+      component: processing
+  template:
+    metadata:
+      labels:
+        app: spark
+        component: processing
+    spec:
+      containers:
+      - name: spark
+        image: "{{ .Values.spark.image.repository }}:{{ .Values.spark.image.tag }}"
+        imagePullPolicy: {{ .Values.spark.image.pullPolicy }}
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: {{ .Values.spark.env.KAFKA_BOOTSTRAP_SERVERS | quote }}
+        - name: SOURCE_TOPIC
+          value: {{ .Values.spark.env.SOURCE_TOPIC | quote }}
+        - name: TARGET_TOPIC
+          value: {{ .Values.spark.env.TARGET_TOPIC | quote }}
+        resources:
+          limits:
+            cpu: {{ .Values.spark.resources.limits.cpu }}
+            memory: {{ .Values.spark.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.spark.resources.requests.cpu }}
+            memory: {{ .Values.spark.resources.requests.memory }}
+        volumeMounts:
+        - name: spark-checkpoint
+          mountPath: /tmp/spark-checkpoint
+      volumes:
+      - name: spark-checkpoint
+        emptyDir: {}
+      restartPolicy: Always
+
+---
+# Spark Service (optional, für potenzielle Spark UI Zugriffe)
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark
+  namespace: {{ .Values.spark.namespace }}
+  labels:
+    app: spark
+    component: processing
+spec:
+  type: ClusterIP
+  ports:
+  - port: 4040
+    targetPort: 4040
+    protocol: TCP
+    name: spark-ui
+  selector:
+    app: spark
+    component: processing
