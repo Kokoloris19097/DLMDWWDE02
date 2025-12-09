@@ -100,8 +100,13 @@ spark:
       memory: "2Gi"
   env:
     KAFKA_BOOTSTRAP_SERVERS: "kafka-broker-0.kafka-broker.messaging.svc.cluster.local:9092,kafka-broker-1.kafka-broker.messaging.svc.cluster.local:9092"
-    SOURCE_TOPIC: "raw-data"
+    SOURCE_TOPIC: "sensor-data"
     TARGET_TOPIC: "analytics-data"
+    WINDOW_DURATION: "30 seconds"
+  streaming:
+    checkpointLocation: "/tmp/spark-checkpoint"
+    triggerInterval: "10 seconds"
+    watermarkDelay: "1 minute"
 
 postgresql:
   namespace: data

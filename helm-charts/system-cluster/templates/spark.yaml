@@ -31,6 +31,30 @@ spec:
           value: {{ .Values.spark.env.SOURCE_TOPIC | quote }}
         - name: TARGET_TOPIC
           value: {{ .Values.spark.env.TARGET_TOPIC | quote }}
+        - name: WINDOW_DURATION
+          value: "30 seconds"
+        - name: SPARK_LOG_LEVEL
+          value: "WARN"
+        livenessProbe:
+          exec:
+            command:
+            - pgrep
+            - -f
+            - spark-submit
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - pgrep
+            - -f
+            - spark-submit
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         resources:
           limits:
             cpu: {{ .Values.spark.resources.limits.cpu }}

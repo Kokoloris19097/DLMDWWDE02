@@ -4,10 +4,29 @@ FROM apache/spark:3.5.7-scala2.12-java11-python3-r-ubuntu
 USER root
 WORKDIR /app
 
+# Python Dependencies installieren
 COPY requirements.txt ./
-RUN apt-get update && apt-get install -y gcc python3-dev librdkafka-dev python3-pip && \
-    pip3 install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y gcc python3-dev librdkafka-dev python3-pip wget && \
+    pip3 install --no-cache-dir -r requirements.txt && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Kafka-Integration JARs herunterladen (zur Build-Zeit)
+RUN mkdir -p /opt/spark/extra-jars && \
+    cd /opt/spark/extra-jars && \
+    wget -q https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.7/spark-sql-kafka-0-10_2.12-3.5.7.jar && \
+    wget -q https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar && \
+    wget -q https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.5.7/spark-token-provider-kafka-0-10_2.12-3.5.7.jar && \
+    wget -q https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar
+
+# spark-sql-kafka-0-10_2.12-3.5.7.jar - Kafka-Datenquelle für Spark
+# kafka-clients-3.4.1.jar - Kafka Client Library
+# spark-token-provider-kafka-0-10_2.12-3.5.7.jar - Token Provider für Kafka
+# commons-pool2-2.11.1.jar - Connection Pooling
+
+# Application Code kopieren
 COPY main.py ./
 
-CMD ["/opt/spark/bin/spark-submit", "main.py"]
+# Spark-Submit mit JARs aus lokalem Verzeichnis
+CMD ["/opt/spark/bin/spark-submit", \
+     "--jars", "/opt/spark/extra-jars/spark-sql-kafka-0-10_2.12-3.5.7.jar,/opt/spark/extra-jars/kafka-clients-3.4.1.jar,/opt/spark/extra-jars/spark-token-provider-kafka-0-10_2.12-3.5.7.jar,/opt/spark/extra-jars/commons-pool2-2.11.1.jar", \
+     "main.py"]
