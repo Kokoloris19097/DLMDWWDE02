@@ -70,7 +70,7 @@ def isolated_sensor(kafka_exec, postgres_exec, config):
         "-n", config.MESSAGING_NAMESPACE,
         "--", "/opt/kafka/bin/kafka-console-producer.sh",
         "--bootstrap-server", "localhost:9092",
-        "--topic", config.KAFKA_TOPIC
+        "--topic", config.SENSOR_DATA_TOPIC
     ]
 
     result = subprocess.run(
@@ -135,14 +135,15 @@ def seeded_sensors(kafka_exec, postgres_exec, config):
                 "-n", config.MESSAGING_NAMESPACE,
                 "--", "/opt/kafka/bin/kafka-console-producer.sh",
                 "--bootstrap-server", "localhost:9092",
-                "--topic", config.KAFKA_TOPIC
+                "--topic", config.SENSOR_DATA_TOPIC
             ]
 
             subprocess.run(cmd, input=message, capture_output=True, text=True, timeout=config.COMMAND_TIMEOUT)
             created_sensors.append(sensor["id"])
 
-        # Wait for all messages to be processed
-        time.sleep(10)
+        # Wait for all messages: sensor-data → Spark (30s window) → analytics-data → PostgreSQL
+        # Need to wait for at least one Spark window (30s) + processing time
+        time.sleep(45)
 
     yield
 
@@ -173,7 +174,7 @@ class TestKafkaTopics:
             "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
         )
         assert success, f"Failed to list topics: {output}"
-        assert config.KAFKA_TOPIC in output, f"Topic {config.KAFKA_TOPIC} not found"
+        assert config.ANALYTICS_DATA_TOPIC in output, f"Topic {config.ANALYTICS_DATA_TOPIC} not found"
 
     @pytest.mark.functional
     @pytest.mark.dependency(name="topic_configuration", scope="session")
@@ -185,7 +186,7 @@ class TestKafkaTopics:
         """
         success, output = kafka_exec(
             f"/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 "
-            f"--describe --topic {config.KAFKA_TOPIC}"
+            f"--describe --topic {config.ANALYTICS_DATA_TOPIC}"
         )
         assert success, f"Failed to describe topic: {output}"
 
@@ -228,103 +229,9 @@ class TestConnectorConfiguration:
             "TimestampConverter transform missing"
 
 
-# =============================================================================
-# LAYER 3C: END-TO-END PIPELINE TESTS
-# =============================================================================
-
-class TestPipelineEndToEnd:
-    """End-to-end pipeline tests"""
-
-    @pytest.mark.functional
-    @pytest.mark.slow
-    @pytest.mark.dependency(name="message_to_postgresql", scope="session")
-    def test_message_to_postgresql(
-        self, kafka_exec, postgres_exec, connect_exec, test_message, config
-    ):
-        """
-        Test complete pipeline: Kafka message -> PostgreSQL
-
-        Dependencies: topic_exists, postgresql_sink_connector_running,
-                      connect_to_kafka_broker, connect_to_postgresql,
-                      analytics_data_table_exists
-        """
-        # 1. Verify connector is running
-        self._verify_connector_running(connect_exec)
-
-        # 2. Send message to Kafka
-        test_id = test_message["id"]
-        self._send_kafka_message(test_message["message"], config)
-
-        # 3. Wait for message to appear in PostgreSQL
-        self._wait_for_message(postgres_exec, test_id, config)
-
-        # 4. Verify data integrity
-        self._verify_data_integrity(postgres_exec, test_id, config)
-
-    def _verify_connector_running(self, connect_exec):
-        """Verify the sink connector is in RUNNING state"""
-        success, output = connect_exec(
-            "curl -s http://localhost:8083/connectors/postgresql-sink/status"
-        )
-        assert success, f"Failed to get connector status: {output}"
-
-        status = json.loads(output)
-        task_state = status["tasks"][0]["state"]
-        assert task_state == "RUNNING", \
-            f"Connector task not running: {status['tasks'][0].get('trace', 'No trace')}"
-
-    def _send_kafka_message(self, message: str, config):
-        """Send a message to Kafka topic"""
-        cmd = [
-            "kubectl", "exec", "-i", "kafka-broker-0",
-            "-n", config.MESSAGING_NAMESPACE,
-            "--", "/opt/kafka/bin/kafka-console-producer.sh",
-            "--bootstrap-server", "localhost:9092",
-            "--topic", config.KAFKA_TOPIC
-        ]
-
-        result = subprocess.run(
-            cmd,
-            input=message,
-            capture_output=True,
-            text=True,
-            timeout=config.COMMAND_TIMEOUT
-        )
-        assert result.returncode == 0, f"Failed to send message: {result.stderr}"
-
-    def _wait_for_message(self, postgres_exec, test_id: str, config, max_wait: int = 15):
-        """Wait for message to appear in PostgreSQL"""
-        query = (
-            f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c "
-            f"\"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE} "
-            f"WHERE sensor_id = '{test_id}'\""
-        )
-
-        for _ in range(max_wait):
-            time.sleep(1)
-            success, output = postgres_exec(query)
-
-            if success and output.strip().isdigit() and int(output.strip()) > 0:
-                return
-
-        pytest.fail(f"Message not found in PostgreSQL after {max_wait} seconds")
-
-    def _verify_data_integrity(self, postgres_exec, test_id: str, config):
-        """Verify the data was correctly stored"""
-        query = (
-            f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c "
-            f"\"SELECT temperature, humidity FROM {config.POSTGRESQL_TABLE} "
-            f"WHERE sensor_id = '{test_id}'\""
-        )
-
-        success, output = postgres_exec(query)
-        assert success, f"Failed to query data: {output}"
-        assert "22.5" in output, f"Temperature mismatch: {output}"
-        assert "55" in output, f"Humidity mismatch: {output}"
-
 
 # =============================================================================
-# LAYER 3D: FASTAPI QUERY ENDPOINT TESTS (Isolated with own data)
+# LAYER 3C: FASTAPI QUERY ENDPOINT TESTS (Isolated with own data)
 # =============================================================================
 
 class TestFastAPIQueryEndpoints:
@@ -581,6 +488,101 @@ class TestFastAPIQueryEndpoints:
                 assert "detail" in body, "Error response should contain 'detail' field"
             except json.JSONDecodeError:
                 pass  # HTTP code check is sufficient
+
+
+# =============================================================================
+# LAYER 3D: END-TO-END PIPELINE TESTS
+# =============================================================================
+
+class TestPipelineEndToEnd:
+    """End-to-end pipeline tests"""
+
+    @pytest.mark.functional
+    @pytest.mark.slow
+    @pytest.mark.dependency(name="message_to_postgresql", scope="session")
+    def test_message_to_postgresql(
+        self, kafka_exec, postgres_exec, connect_exec, test_message, config
+    ):
+        """
+        Test complete pipeline: Kafka message -> PostgreSQL
+
+        Dependencies: topic_exists, postgresql_sink_connector_running,
+                      connect_to_kafka_broker, connect_to_postgresql,
+                      analytics_data_table_exists
+        """
+        # 1. Verify connector is running
+        self._verify_connector_running(connect_exec)
+
+        # 2. Send message to Kafka
+        test_id = test_message["id"]
+        self._send_kafka_message(test_message["message"], config)
+
+        # 3. Wait for message to appear in PostgreSQL
+        self._wait_for_message(postgres_exec, test_id, config)
+
+        # 4. Verify data integrity
+        self._verify_data_integrity(postgres_exec, test_id, config)
+
+    def _verify_connector_running(self, connect_exec):
+        """Verify the sink connector is in RUNNING state"""
+        success, output = connect_exec(
+            "curl -s http://localhost:8083/connectors/postgresql-sink/status"
+        )
+        assert success, f"Failed to get connector status: {output}"
+
+        status = json.loads(output)
+        task_state = status["tasks"][0]["state"]
+        assert task_state == "RUNNING", \
+            f"Connector task not running: {status['tasks'][0].get('trace', 'No trace')}"
+
+    def _send_kafka_message(self, message: str, config):
+        """Send a message to Kafka topic"""
+        cmd = [
+            "kubectl", "exec", "-i", "kafka-broker-0",
+            "-n", config.MESSAGING_NAMESPACE,
+            "--", "/opt/kafka/bin/kafka-console-producer.sh",
+            "--bootstrap-server", "localhost:9092",
+            "--topic", config.ANALYTICS_DATA_TOPIC
+        ]
+
+        result = subprocess.run(
+            cmd,
+            input=message,
+            capture_output=True,
+            text=True,
+            timeout=config.COMMAND_TIMEOUT
+        )
+        assert result.returncode == 0, f"Failed to send message: {result.stderr}"
+
+    def _wait_for_message(self, postgres_exec, test_id: str, config, max_wait: int = 15):
+        """Wait for message to appear in PostgreSQL"""
+        query = (
+            f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c "
+            f"\"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE} "
+            f"WHERE sensor_id = '{test_id}'\""
+        )
+
+        for _ in range(max_wait):
+            time.sleep(1)
+            success, output = postgres_exec(query)
+
+            if success and output.strip().isdigit() and int(output.strip()) > 0:
+                return
+
+        pytest.fail(f"Message not found in PostgreSQL after {max_wait} seconds")
+
+    def _verify_data_integrity(self, postgres_exec, test_id: str, config):
+        """Verify the data was correctly stored"""
+        query = (
+            f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c "
+            f"\"SELECT temperature, humidity FROM {config.POSTGRESQL_TABLE} "
+            f"WHERE sensor_id = '{test_id}'\""
+        )
+
+        success, output = postgres_exec(query)
+        assert success, f"Failed to query data: {output}"
+        assert "22.5" in output, f"Temperature mismatch: {output}"
+        assert "55" in output, f"Humidity mismatch: {output}"
 
 
 # =============================================================================

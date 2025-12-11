@@ -24,7 +24,8 @@ class TestConfig:
     DATA_NAMESPACE: str = "data"
     API_NAMESPACE: str = "api"
     MONITORING_NAMESPACE: str = "monitoring"
-    KAFKA_TOPIC: str = "analytics-data"
+    ANALYTICS_DATA_TOPIC: str = "analytics-data"
+    SENSOR_DATA_TOPIC: str = "sensor-data"
     POSTGRESQL_DB: str = "sensordata"
     POSTGRESQL_TABLE: str = "analytics_data"
     COMMAND_TIMEOUT: int = 30
