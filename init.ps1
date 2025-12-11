@@ -354,7 +354,7 @@ Bitte manuell installieren:
     Write-Log "INFO" "Starte Port-Forwarding Skript..."
     $portForwardScript = Join-Path $initScriptRoot "port-forward.ps1"
     if (Test-Path $portForwardScript) {
-        Start-Process -FilePath "pwsh.exe" -ArgumentList "-NoExit", "-File", $portForwardScript -WindowStyle Minimized
+        Start-Process -FilePath "cmd.exe" -ArgumentList "/k pwsh -File `"$portForwardScript`"" -WindowStyle Minimized
         Write-Log "SUCCESS" "Port-Forwarding in neuem Prozess gestartet"
     } else {
         Write-Log "WARN" "port-forward.ps1 nicht gefunden."
@@ -369,15 +369,13 @@ Bitte manuell installieren:
         Write-Log "DEBUG" "  Warte 5 Sekunden auf Port-Forwarding..."
         Start-Sleep -Seconds 5
 
-        # Starte Simulator in neuem Prozess
-        $simulatorArgs = @(
-            $simulatorScript,
-            "--interval", "1.0",
-            "--sensors", "15"
-        )
-
-        Start-Process -FilePath "python" -ArgumentList $simulatorArgs -NoNewWindow
-        Write-Log "SUCCESS" "Sensor Simulator gestartet (15 Sensoren, 1.0s Intervall)"
+        # Starte Simulator in neuem PowerShell-Fenster mit venv-Aktivierung
+        $venvPath = Join-Path $initScriptRoot "venv"
+        $activateCmd = "$venvPath\Scripts\Activate.ps1"
+        $simulatorCmd = "python `"$simulatorScript`" --interval 1.0 --sensors 15"
+        $fullCmd = "& '$activateCmd'; python '$simulatorScript' --interval 1.0 --sensors 15"
+        Start-Process -FilePath "pwsh.exe" -ArgumentList "-NoExit", "-Command", $fullCmd -WindowStyle Normal
+        Write-Log "SUCCESS" "Sensor Simulator gestartet (15 Sensoren, 1.0s Intervall, venv aktiviert, PowerShell)"
     } else {
         Write-Log "WARN" "simulator\sensor_simulator.py nicht gefunden."
     }
