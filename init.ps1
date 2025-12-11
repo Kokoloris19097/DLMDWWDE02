@@ -350,6 +350,16 @@ Bitte manuell installieren:
     Write-Log "SUCCESS" "=== Cluster läuft! ==="
     #endregion Status
 
+    #region 6 Tests ausführen
+    Write-Log "INFO" "[5/5] Führe Tests aus..."
+    start-sleep -Seconds 10 # Warten bis Pods bereit sind
+    Write-Log "DEBUG" "  Running pytest..."
+    Set-Location "$scriptRoot/tests"
+    pytest test_1_health.py -v --tb=short
+    pytest test_2_connectivity.py  -v --tb=short
+    pytest test_3_functional.py  -v --tb=short
+    #endregion 6 Tests ausführen
+
     #region 6. Port-Forwarding Skript starten
     Write-Log "INFO" "Starte Port-Forwarding Skript..."
     $portForwardScript = Join-Path $initScriptRoot "port-forward.ps1"
