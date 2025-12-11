@@ -36,24 +36,20 @@ spec:
         - name: SPARK_LOG_LEVEL
           value: "WARN"
         livenessProbe:
-          exec:
-            command:
-            - pgrep
-            - -f
-            - spark-submit
-          initialDelaySeconds: 60
+          httpGet:
+            path: /
+            port: 4040
+          initialDelaySeconds: 90
           periodSeconds: 30
           timeoutSeconds: 10
-          failureThreshold: 3
+          failureThreshold: 5
         readinessProbe:
-          exec:
-            command:
-            - pgrep
-            - -f
-            - spark-submit
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
+          httpGet:
+            path: /
+            port: 4040
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 10
           failureThreshold: 3
         resources:
           limits:

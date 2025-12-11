@@ -102,7 +102,7 @@ winget install Helm.Helm
 
 ### System deployen
 
-Das Init-Skript (`init.ps1`) führt automatisch alle notwendigen Schritte aus:
+Das Init-Skript (`init.ps1`) führt automatisch alle notwendigen Schritte aus, die Installation mit dem erstellen der Images dauert ungefähr 15-20 Minuten:
 
 ```powershell
 .\init.ps1

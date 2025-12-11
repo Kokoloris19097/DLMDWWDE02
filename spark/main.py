@@ -89,8 +89,8 @@ if __name__ == "__main__":
     create_kafka_topics_if_not_exist(
         bootstrap_servers=KAFKA_BOOTSTRAP,
         topics=[
-            (SOURCE_TOPIC, 1, 1),
-            (TARGET_TOPIC, 1, 1)
+            (SOURCE_TOPIC, 1, 2),
+            (TARGET_TOPIC, 1, 2)
         ]
     )
 

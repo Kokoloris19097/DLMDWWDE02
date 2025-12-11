@@ -482,16 +482,12 @@ class TestSparkConnectivity:
         # Consume the test message from Kafka (python3)
         cmd = (
             "python3 -c \"from kafka import KafkaConsumer; "
-            "import time; "
             f"consumer = KafkaConsumer('{test_topic}', "
             f"bootstrap_servers='{self.KAFKA_BROKER_HOST}:9092', "
             "auto_offset_reset='earliest', "
             "consumer_timeout_ms=10000, "
             "enable_auto_commit=False); "
-            "messages = []; "
-            "for msg in consumer: "
-            "    messages.append(msg.value); "
-            "    break; "
+            "messages = [msg.value for i, msg in enumerate(consumer) if i == 0]; "
             "consumer.close(); "
             "print('OK' if messages else 'FAIL')\""
         )
