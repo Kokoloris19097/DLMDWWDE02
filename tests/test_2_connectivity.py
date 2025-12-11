@@ -369,3 +369,132 @@ class TestMonitoringConnectivity:
         success, output = get_endpoints("grafana", config.MONITORING_NAMESPACE)
         assert success, f"Failed to get Grafana endpoints: {output}"
         assert output != "", f"No endpoints for Grafana service: {output}"
+
+
+# =============================================================================
+# LAYER 2F: SPARK CONNECTIVITY (Depends on Spark Health)
+# =============================================================================
+
+class TestSparkConnectivity:
+    """Apache Spark network connectivity tests"""
+
+    KAFKA_BROKER_HOST = "kafka.messaging.svc.cluster.local"
+    KAFKA_BROKER_0_HOST = "kafka-broker-0.kafka-broker.messaging.svc.cluster.local"
+    KAFKA_BROKER_1_HOST = "kafka-broker-1.kafka-broker.messaging.svc.cluster.local"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="spark_to_kafka_broker", scope="session")
+    def test_spark_to_kafka_broker(self, spark_exec):
+        """
+        Verify Spark can reach Kafka broker service
+
+        Dependencies: spark_running, kafka_broker_0_running
+        """
+        success, output = spark_exec(
+            tcp_check_with_nc_fallback(self.KAFKA_BROKER_HOST, 9092)
+        )
+        assert success, f"Command failed: {output}"
+        assert "OK" in output, f"Spark cannot reach Kafka broker: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="spark_to_kafka_broker_0", scope="session")
+    def test_spark_to_kafka_broker_0(self, spark_exec):
+        """
+        Verify Spark can reach Kafka broker-0 directly
+
+        Dependencies: spark_running, kafka_broker_0_running
+        """
+        success, output = spark_exec(
+            tcp_check_cmd(self.KAFKA_BROKER_0_HOST, 9092)
+        )
+        assert success, f"Command failed: {output}"
+        assert "OK" in output, f"Spark cannot reach Kafka broker-0: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="spark_to_kafka_broker_1", scope="session")
+    def test_spark_to_kafka_broker_1(self, spark_exec):
+        """
+        Verify Spark can reach Kafka broker-1 directly
+
+        Dependencies: spark_running, kafka_broker_1_running
+        """
+        success, output = spark_exec(
+            tcp_check_cmd(self.KAFKA_BROKER_1_HOST, 9092)
+        )
+        assert success, f"Command failed: {output}"
+        assert "OK" in output, f"Spark cannot reach Kafka broker-1: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="spark_kafka_topics_list", scope="session")
+    def test_spark_kafka_topics_list(self, spark_exec, config):
+        """
+        Verify Spark can list Kafka topics using kafka-python
+
+        Dependencies: spark_to_kafka_broker
+        """
+        # Test with kafka-python library (available in Spark container)
+        cmd = (
+            "python -c \"from kafka import KafkaAdminClient; "
+            f"admin = KafkaAdminClient(bootstrap_servers='{self.KAFKA_BROKER_HOST}:9092', request_timeout_ms=5000); "
+            "topics = admin.list_topics(); "
+            "print('OK' if topics else 'FAIL'); "
+            "admin.close()\""
+        )
+        success, output = spark_exec(cmd)
+        assert success, f"Failed to execute kafka-python test: {output}"
+        assert "OK" in output, f"Kafka topics listing failed: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="spark_kafka_produce_test", scope="session")
+    def test_spark_kafka_produce_test(self, spark_exec, config):
+        """
+        Verify Spark can produce messages to Kafka
+
+        Dependencies: spark_kafka_topics_list
+        """
+        test_topic = "spark-connectivity-test"
+        test_message = "connectivity-test-message"
+
+        # Produce a test message to Kafka
+        cmd = (
+            "python -c \"from kafka import KafkaProducer; "
+            f"producer = KafkaProducer(bootstrap_servers='{self.KAFKA_BROKER_HOST}:9092', request_timeout_ms=10000); "
+            f"future = producer.send('{test_topic}', b'{test_message}'); "
+            "result = future.get(timeout=10); "
+            "producer.flush(); "
+            "producer.close(); "
+            "print('OK')\""
+        )
+        success, output = spark_exec(cmd)
+        assert success, f"Failed to produce message: {output}"
+        assert "OK" in output, f"Kafka produce test failed: {output}"
+
+    @pytest.mark.connectivity
+    @pytest.mark.dependency(name="spark_kafka_consume_test", scope="session")
+    def test_spark_kafka_consume_test(self, spark_exec, config):
+        """
+        Verify Spark can consume messages from Kafka
+
+        Dependencies: spark_kafka_produce_test
+        """
+        test_topic = "spark-connectivity-test"
+
+        # Consume the test message from Kafka
+        cmd = (
+            "python -c \"from kafka import KafkaConsumer; "
+            "import time; "
+            f"consumer = KafkaConsumer('{test_topic}', "
+            f"bootstrap_servers='{self.KAFKA_BROKER_HOST}:9092', "
+            "auto_offset_reset='earliest', "
+            "consumer_timeout_ms=10000, "
+            "enable_auto_commit=False); "
+            "messages = []; "
+            "for msg in consumer: "
+            "    messages.append(msg.value); "
+            "    break; "
+            "consumer.close(); "
+            "print('OK' if messages else 'FAIL')\""
+        )
+        success, output = spark_exec(cmd)
+        assert success, f"Failed to consume message: {output}"
+        assert "OK" in output, f"Kafka consume test failed: {output}"

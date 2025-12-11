@@ -203,6 +203,30 @@ def fastapi_exec(config) -> Callable[[str], Tuple[bool, str]]:
         )
     return execute
 
+
+@pytest.fixture(scope="session")
+def spark_exec(config) -> Callable[[str], Tuple[bool, str]]:
+    """Execute command in spark pod (found dynamically)"""
+    def execute(command: str) -> Tuple[bool, str]:
+        # Find Spark pod dynamically
+        get_pod_args = [
+            "-n", config.DATA_NAMESPACE, "get", "pod",
+            "-o", "jsonpath={.items[?(@.metadata.name=~\"^spark-.*\")].metadata.name}"
+        ]
+        success, pod_name = run_kubectl(get_pod_args, config.COMMAND_TIMEOUT)
+        if pod_name:
+            pod_name = pod_name.strip().split()[0] if pod_name.strip() else ""
+        if not success or not pod_name:
+            return False, f"No Spark pod found in {config.DATA_NAMESPACE} namespace"
+        return run_kubectl_exec(
+            config.DATA_NAMESPACE,
+            pod_name,
+            command,
+            config.COMMAND_TIMEOUT,
+            use_shell=True
+        )
+    return execute
+
 # =============================================================================
 # POD STATUS HELPERS
 # =============================================================================

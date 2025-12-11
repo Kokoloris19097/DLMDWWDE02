@@ -262,3 +262,26 @@ class TestMonitoringHealth:
         success, phase = get_pod_phase(pod_name, config.MONITORING_NAMESPACE)
         assert success, f"Failed to get pod status: {phase}"
         assert phase == "Running", f"Grafana pod {pod_name} is not running: {phase}"
+
+
+# =============================================================================
+# LAYER 1F: SPARK HEALTH (Processing Foundation)
+# =============================================================================
+
+class TestSparkHealth:
+    """Apache Spark health checks"""
+
+    @pytest.mark.health
+    @pytest.mark.dependency(name="spark_running", scope="session")
+    def test_spark_running(self, get_pod_phase, get_pod_names, config):
+        """
+        Verify Spark pod is running (dynamic pod name)
+        """
+        pod_names = get_pod_names(config.DATA_NAMESPACE)
+        spark_pods = [n for n in pod_names if n.startswith("spark-")]
+        assert spark_pods, f"No Spark pod found in {config.DATA_NAMESPACE} namespace"
+
+        pod_name = spark_pods[0]
+        success, phase = get_pod_phase(pod_name, config.DATA_NAMESPACE)
+        assert success, f"Failed to get pod status: {phase}"
+        assert phase == "Running", f"Spark pod {pod_name} is not running: {phase}"
