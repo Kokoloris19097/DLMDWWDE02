@@ -88,6 +88,42 @@ Bitte manuell installieren:
     }
     #endregion Prerequisites
 
+    #region 1. Podman-VM prüfen und starten
+    # Prüfe ob Podman installiert ist
+    if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
+        Write-Log "ERROR" "Podman nicht gefunden! Bitte installiere Podman (https://podman.io/) und versuche es erneut."
+        exit 1
+    }
+
+    # Prüfe ob eine Podman-VM existiert
+    $podmanMachines = podman machine list --format json | ConvertFrom-Json
+    if (-not $podmanMachines -or $podmanMachines.Count -eq 0) {
+        Write-Log "INFO" "Erstelle neue Podman-VM..."
+        podman machine init
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "ERROR" "Podman-VM konnte nicht erstellt werden!"
+            exit 1
+        }
+    }
+
+    # Prüfe ob Podman-VM läuft
+    $podmanState = ($podmanMachines | Where-Object { $_.Name -eq "podman-machine-default" })
+    if (-not $podmanState) {
+        # Fallback: Nimm erste VM
+        $podmanState = $podmanMachines[0]
+    }
+    if ($podmanState.Running -ne $true) {
+        Write-Log "INFO" "Starte Podman-VM..."
+        podman machine start $podmanState.Name
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "ERROR" "Podman-VM konnte nicht gestartet werden!"
+            exit 1
+        }
+    } else {
+        Write-Log "SUCCESS" "Podman-VM läuft bereits."
+    }
+    #endregion 1. Podman-VM prüfen und starten
+
     #region 1. Cluster erstellen/prüfen
     Write-Log "INFO" "[1/5] Prüfe Cluster..."
     $clusterExists = kind get clusters 2>$null | Select-String -Pattern "^$clusterName$"
@@ -341,7 +377,7 @@ Bitte manuell installieren:
         )
 
         Start-Process -FilePath "python" -ArgumentList $simulatorArgs -NoNewWindow
-        Write-Log "SUCCESS" "Sensor Simulator gestartet (15 Sensoren, 1.0s Intervall)"        
+        Write-Log "SUCCESS" "Sensor Simulator gestartet (15 Sensoren, 1.0s Intervall)"
     } else {
         Write-Log "WARN" "simulator\sensor_simulator.py nicht gefunden."
     }
