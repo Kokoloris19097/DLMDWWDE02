@@ -391,7 +391,7 @@ class TestSparkConnectivity:
         Dependencies: spark_running, kafka_broker_0_running
         """
         success, output = spark_exec(
-            tcp_check_with_nc_fallback(self.KAFKA_BROKER_HOST, 9092)
+            tcp_check_cmd(self.KAFKA_BROKER_HOST, 9092)
         )
         assert success, f"Command failed: {output}"
         assert "OK" in output, f"Spark cannot reach Kafka broker: {output}"
@@ -432,9 +432,9 @@ class TestSparkConnectivity:
 
         Dependencies: spark_to_kafka_broker
         """
-        # Test with kafka-python library (available in Spark container)
+        # Test with kafka-python library (python3 in Spark container)
         cmd = (
-            "python -c \"from kafka import KafkaAdminClient; "
+            "python3 -c \"from kafka import KafkaAdminClient; "
             f"admin = KafkaAdminClient(bootstrap_servers='{self.KAFKA_BROKER_HOST}:9092', request_timeout_ms=5000); "
             "topics = admin.list_topics(); "
             "print('OK' if topics else 'FAIL'); "
@@ -455,9 +455,9 @@ class TestSparkConnectivity:
         test_topic = "spark-connectivity-test"
         test_message = "connectivity-test-message"
 
-        # Produce a test message to Kafka
+        # Produce a test message to Kafka (python3)
         cmd = (
-            "python -c \"from kafka import KafkaProducer; "
+            "python3 -c \"from kafka import KafkaProducer; "
             f"producer = KafkaProducer(bootstrap_servers='{self.KAFKA_BROKER_HOST}:9092', request_timeout_ms=10000); "
             f"future = producer.send('{test_topic}', b'{test_message}'); "
             "result = future.get(timeout=10); "
@@ -479,9 +479,9 @@ class TestSparkConnectivity:
         """
         test_topic = "spark-connectivity-test"
 
-        # Consume the test message from Kafka
+        # Consume the test message from Kafka (python3)
         cmd = (
-            "python -c \"from kafka import KafkaConsumer; "
+            "python3 -c \"from kafka import KafkaConsumer; "
             "import time; "
             f"consumer = KafkaConsumer('{test_topic}', "
             f"bootstrap_servers='{self.KAFKA_BROKER_HOST}:9092', "

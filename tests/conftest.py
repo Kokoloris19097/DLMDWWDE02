@@ -206,16 +206,17 @@ def fastapi_exec(config) -> Callable[[str], Tuple[bool, str]]:
 
 @pytest.fixture(scope="session")
 def spark_exec(config) -> Callable[[str], Tuple[bool, str]]:
-    """Execute command in spark pod (found dynamically)"""
+    """Execute command in spark pod (found dynamically using label selector)"""
     def execute(command: str) -> Tuple[bool, str]:
-        # Find Spark pod dynamically
+        # Find Spark pod dynamically using label selector
         get_pod_args = [
             "-n", config.DATA_NAMESPACE, "get", "pod",
-            "-o", "jsonpath={.items[?(@.metadata.name=~\"^spark-.*\")].metadata.name}"
+            "-l", "app=spark",
+            "-o", "jsonpath={.items[0].metadata.name}"
         ]
         success, pod_name = run_kubectl(get_pod_args, config.COMMAND_TIMEOUT)
         if pod_name:
-            pod_name = pod_name.strip().split()[0] if pod_name.strip() else ""
+            pod_name = pod_name.strip()
         if not success or not pod_name:
             return False, f"No Spark pod found in {config.DATA_NAMESPACE} namespace"
         return run_kubectl_exec(
