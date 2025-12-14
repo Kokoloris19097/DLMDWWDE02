@@ -409,6 +409,18 @@ try {
         exit 1
     }
 
+    # Restart der Pods erzwingen, um sicherzustellen, dass alle Änderungen übernommen werden
+    Write-Log "DEBUG" "  Erzwinge Pod-Restarts..."
+    if ($updateFastAPI) {
+        kubectl delete pod -n api -l app=fastapi
+    }
+    if ($updatePostgresConnector) {
+        kubectl delete pod -n messaging -l app=kafka-connect
+    }
+    if ($updateSpark) {
+        kubectl delete pod -n data -l app=spark
+    }
+
     Write-Log "INFO" "[5/5] Führe Tests aus..."
     start-sleep -Seconds 10 # Warten bis Pods bereit sind
     Write-Log "DEBUG" "  Running pytest..."
