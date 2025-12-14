@@ -100,6 +100,9 @@ def get_kafka_producer() -> Producer:
             raise
     return get_kafka_producer.producer
 
+
+
+
 class SensorData(BaseModel):
     """Schema für eingehende Sensor-Daten"""
     sensor_id: str = Field(..., description="Eindeutige Sensor-ID", min_length=1, max_length=100)
@@ -110,10 +113,52 @@ class SensorData(BaseModel):
     @field_validator('timestamp')
     @classmethod
     def validate_timestamp(cls, v: datetime) -> datetime:
-        """Validiert dass Timestamp nicht in der Zukunft liegt"""
+        """
+        Validiert Timestamp auf Plausibilität:
+        - Ablehnung: > 1 Tag in Zukunft oder > 1 Tag in Vergangenheit
+        - Warnung: > 5 Minuten in Zukunft oder > 10 Stunden in Vergangenheit
+        - Akzeptiert: Alle anderen Werte
+        """
         now = datetime.now(v.tzinfo) if v.tzinfo else datetime.now()
-        if v > now:
-            raise ValueError('Timestamp darf nicht in der Zukunft liegen')
+
+        # Unplausible Werte: Ablehnen
+        max_future = timedelta(days=1)
+        max_past = timedelta(days=1)
+
+        if v > now + max_future:
+            raise ValueError(f"Timestamp liegt zu weit in der Zukunft (>{max_future.days} Tage)")
+
+        if v < now - max_past:
+            raise ValueError(f"Timestamp liegt zu weit in der Vergangenheit (>{max_past.days} Tage)")
+
+        # Auffällige Werte: Loggen (aber akzeptieren)
+        warning_future = timedelta(minutes=5)
+        warning_past = timedelta(hours=10)
+
+        import inspect
+        try:
+            frame = inspect.currentframe()
+            # Gehe zwei Frames zurück (diese Funktion -> validate_* -> pydantic)
+            outer = frame.f_back.f_back
+            values = outer.f_locals.get('values', {})
+            sensor_id = values.get('sensor_id', None)
+        except Exception:
+            sensor_id = None
+
+        if v > now + warning_future:
+            logger.warning(
+                f"Auffälliger Timestamp in der Zukunft: {v.isoformat()} "
+                f"(Differenz: {(v - now).total_seconds():.1f}s) "
+                f"[sensor_id={sensor_id}]"
+            )
+
+        if v < now - warning_past:
+            logger.warning(
+                f"Auffälliger Timestamp in der Vergangenheit: {v.isoformat()} "
+                f"(Alter: {(now - v).days} Tage) "
+                f"[sensor_id={sensor_id}]"
+            )
+
         return v
 
     model_config = {

@@ -334,7 +334,7 @@ class TestFastAPIIngestionEndpoint:
         # ARRANGE
         sensor_data = {
             "sensor_id": f"test-ingest-{uuid.uuid4().hex[:8]}",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": (datetime.now() - timedelta(seconds=1)).isoformat(),
             "temperature": 22.5,
             "humidity": 55.0
         }
@@ -357,6 +357,13 @@ class TestFastAPIIngestionEndpoint:
             assert "kafka_partition" in data, "Missing kafka_partition field"
             assert "kafka_offset" in data, "Missing kafka_offset field"
             assert "message" in data, "Missing message field"
+            assert "timestamp" in data, "Missing timestamp field"
+
+            # Verify Kafka metadata values are valid
+            assert isinstance(data["kafka_partition"], int), "kafka_partition must be integer"
+            assert isinstance(data["kafka_offset"], int), "kafka_offset must be integer"
+            assert data["kafka_partition"] >= 0, "kafka_partition must be non-negative"
+            assert data["kafka_offset"] >= 0, "kafka_offset must be non-negative"
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
