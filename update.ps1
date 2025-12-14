@@ -420,6 +420,20 @@ try {
     if ($updateSpark) {
         kubectl delete pod -n data -l app=spark
     }
+    if ($updateFastAPI -or $updatePostgresConnector -or $updateSpark) {
+        $maxRetries = 30
+        $retry = 0
+        $waitingTime = 2
+        do {
+            Start-Sleep -Seconds $waitingTime
+            $pods = kubectl get pods -A -o json | ConvertFrom-Json
+            $notReady = $pods.items | Where-Object { $_.status.phase -ne "Running" }
+            $retry++
+        } while ($notReady.Count -gt 0 -and $retry -lt $maxRetries)
+        if ($notReady.Count -gt 0) {
+            Write-Log "WARN" "Pods sind nach $($maxRetries*$waitingTime) Sekunden nicht bereit!"
+        }
+    }
 
     Write-Log "INFO" "[5/5] Führe Tests aus..."
     start-sleep -Seconds 10 # Warten bis Pods bereit sind
