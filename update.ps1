@@ -12,6 +12,24 @@ function Write-Log {
     Write-Host "[update $delay s] $Message" -ForegroundColor $colors[$Level]
 }
 
+function Get-UnrunningPods {
+    # Prüfe auf nicht-running Pods und gebe deren Logs aus
+    try {
+        $pods = kubectl get pods --all-namespaces -o json | ConvertFrom-Json
+        $badPods = $pods.items | Where-Object {$_.status.phase -ne 'Running' -or
+            ($_.status.containerStatuses | Where-Object { $_.state.waiting -and $_.state.waiting.reason -eq 'CrashLoopBackOff' })
+        }
+        foreach ($pod in $badPods) {
+            $podName = $pod.metadata.name
+            $podNs = $pod.metadata.namespace
+            Write-Log "ERROR" "Pod $podName (Namespace: $podNs) ist nicht Running (Status: $($pod.status.phase)). Logs:"
+            kubectl logs $podName -n $podNs | ForEach-Object { Write-Host $_ }
+        }
+        return $badPods
+    } catch {
+        Write-Log "ERROR" "Fehler beim Auslesen der Pod-Logs: $_"
+    }
+}
 
 Write-Log "INFO" "Helm Chart Update"
 Write-Host "Welche Images möchten Sie aktualisieren? (J/N)" -ForegroundColor Cyan
@@ -285,23 +303,71 @@ try {
     # Zurück zum Chart-Verzeichnis
     Set-Location $absoluteChartPath
 
-    # 3. Release prüfen
-    Write-Log "INFO" "[3/5] Prüfe Release Status..."
+    # 4. Upgrade durchführen
+        Write-Log "INFO" "[4/5] Prüfe Release und führe Upgrade durch..."
     $releaseExists = helm list -n default -q | Select-String -Pattern "^$releaseName$"
-
-    if (-not $releaseExists) {
-        Write-Log "ERROR" "Release '$releaseName' existiert nicht. Verwende init.ps1 für Installation."
-        exit 1
+    function Start-HelmReinstall {
+        Write-Log "INFO" "Starte Neuinstallation des Releases..."
+        helm uninstall $releaseName --namespace default
+        helm install $releaseName . --namespace default --wait --timeout=300s
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log "SUCCESS" "Neuinstallation erfolgreich."
+            exit 0
+        } else {
+            Write-Log "ERROR" "Neuinstallation des Releases fehlgeschlagen!"
+            exit 1
+        }
     }
 
-    $releaseStatus = helm list -n default -o json | ConvertFrom-Json | Where-Object { $_.name -eq $releaseName }
-    Write-Log "DEBUG" "  Status: $($releaseStatus.status)"
-    Write-Log "DEBUG" "  Revision: $($releaseStatus.revision)"
+    if (-not $releaseExists) {
+        Write-Log "INFO" "Es existiert kein Release für '$releaseName'."
+        $HelmStatus = helm status $releaseName --namespace default | Select-String -Pattern "^STATUS:\s*(\w+)" | ForEach-Object {if ($_ -match "^STATUS:\s*(\w+)") { $matches[1] }}
+        if ($HelmStatus -eq "pending-install" -or $HelmStatus -eq "pending-upgrade") {
+            Write-Log "WARN" "Release konnte nicht vollständig installiert werden. Vermutlich laufen einige Pods nicht korrekt."
+            $badPods = Get-UnrunningPods
+            if ($badPods.Count -gt 0) {
+                Write-Log "ERROR" "Behebe die Probleme mit den Pods."
+                exit 1
+            }
+            # Prüfe, ob eine Revision existiert
+            $history = helm history $releaseName --namespace default -o json | ConvertFrom-Json
+            if ($history -and $history.Count -gt 0) {
+                $lastRevision = $history | Where-Object { $_.status -eq "deployed" } | Select-Object -Last 1
+                if ($lastRevision) {
+                    Write-Log "INFO" "Versuche Rollback auf Revision $($lastRevision.revision) ..."
+                    helm rollback $releaseName $($lastRevision.revision) --namespace default --wait --timeout=300s
+                    Write-Log "DEBUG" "  Warte auf Rollout (max. 5 Minuten)..."
+                    helm upgrade $releaseName . --namespace default --wait --timeout=300s
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Log "SUCCESS" "Rollback erfolgreich."
+                        exit 0
+                    } else {
+                        Write-Log "WARN" "Rollback fehlgeschlagen"
+                    }
+                } else {
+                    Write-Log "WARN" "Keine erfolgreiche Revision gefunden, versuche Neuinstallation ..."
+                    Start-HelmReinstall
+                }
+            } else {
+                Write-Log "WARN" "Keine Release-Historie gefunden, versuche Neuinstallation ..."
+                Start-HelmReinstall
+            }
 
-    # 4. Upgrade durchführen
-    Write-Log "INFO" "[4/5] Führe Upgrade durch..."
-    Write-Log "DEBUG" "  Warte auf Rollout (max. 5 Minuten)..."
-    helm upgrade $releaseName . --namespace default --wait --timeout=300s
+            if ($LASTEXITCODE -eq 0) {
+                Write-Log "SUCCESS" "Neuinstallation erfolgreich."
+                exit 0
+            } else {
+                Write-Log "ERROR" "Installation des Releases trotz Fix fehlgeschlagen!"
+                exit 1
+            }
+        }
+    }else {
+        $releaseStatus = helm list -n default -o json | ConvertFrom-Json | Where-Object { $_.name -eq $releaseName }
+        Write-Log "DEBUG" "  Status: $($releaseStatus.status)"
+        Write-Log "DEBUG" "  Revision: $($releaseStatus.revision)"
+        Write-Log "DEBUG" "  Warte auf Rollout (max. 5 Minuten)..."
+        helm upgrade $releaseName . --namespace default --wait --timeout=300s
+    }
 
     if ($LASTEXITCODE -ne 0) {
         Write-Log "ERROR" "Upgrade fehlgeschlagen!"
@@ -354,26 +420,11 @@ try {
         exit 1
     }
 
-
-    # Prüfe auf nicht-running Pods und gebe deren Logs aus
-    try {
-        $pods = kubectl get pods --all-namespaces -o json | ConvertFrom-Json
-        $badPods = $pods.items | Where-Object {$_.status.phase -ne 'Running' -or
-            ($_.status.containerStatuses | Where-Object { $_.state.waiting -and $_.state.waiting.reason -eq 'CrashLoopBackOff' })
-        }
-        foreach ($pod in $badPods) {
-            $podName = $pod.metadata.name
-            $podNs = $pod.metadata.namespace
-            Write-Log "ERROR" "Pod $podName (Namespace: $podNs) ist nicht Running (Status: $($pod.status.phase)). Logs:"
-            kubectl logs $podName -n $podNs | ForEach-Object { Write-Host $_ }
-        }
-        if ($badPods.Count -gt 0) {
-            Write-Log "ERROR" "=== Upgrade fehlgeschlagen ==="
-        } else {
-            Write-Log "SUCCESS" "=== Upgrade erfolgreich ==="
-        }
-    } catch {
-        Write-Log "ERROR" "Fehler beim Auslesen der Pod-Logs: $_"
+    $badPods = Get-UnrunningPods
+    if ($badPods.Count -gt 0) {
+        Write-Log "ERROR" "=== Upgrade fehlgeschlagen ==="
+    } else {
+        Write-Log "SUCCESS" "=== Upgrade erfolgreich ==="
     }
 
     # 6. Status anzeigen
