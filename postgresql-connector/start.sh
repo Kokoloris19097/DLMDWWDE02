@@ -45,11 +45,21 @@ echo "PostgreSQL is ready!"
 # Zusätzliche Wartezeit für Stabilität
 sleep 5
 
+# Prüfe, ob der Connector bereits existiert
+EXISTS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8083/connectors/postgresql-sink)
+
+if [ "$EXISTS_CODE" = "200" ]; then
+    echo "Connector already exists. Deleting for re-registration..."
+    curl -s -X DELETE http://localhost:8083/connectors/postgresql-sink
+    # Warte kurz, bis der Connector wirklich entfernt ist
+    sleep 5
+fi
+
 # Registriere Connector
 echo "Registering PostgreSQL Sink Connector..."
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8083/connectors \
     -H "Content-Type: application/json" \
--d @/etc/kafka-connect/connector-config.json)
+    -d @/etc/kafka-connect/connector-config.json)
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
