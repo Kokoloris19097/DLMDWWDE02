@@ -1,10 +1,11 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, window, mean, from_json, to_json, struct, lit, date_format, current_timestamp
+from pyspark.sql.functions import col, window, mean, from_json, to_json, struct, lit, date_format, current_timestamp, array
 from pyspark.sql.types import StructType, StringType, DoubleType, TimestampType
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
 import logging
 import os
+import json
 
 # Logging konfigurieren
 logging.basicConfig(
@@ -15,12 +16,9 @@ logger = logging.getLogger(__name__)
 
 # Konfiguration aus Umgebungsvariablen
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka-broker.messaging.svc.cluster.local:9092")
-SOURCE_TOPIC = os.getenv("SOURCE_TOPIC", "raw-data")
+SOURCE_TOPIC = os.getenv("SOURCE_TOPIC", "sensor-data")
 TARGET_TOPIC = os.getenv("TARGET_TOPIC", "analytics-data")
 WINDOW_DURATION = os.getenv("WINDOW_DURATION", "30 seconds")
-
-# Schema-Definition für Kafka Connect JSON Format
-SCHEMA_JSON = '{"type":"struct","fields":[{"field":"sensor_id","type":"string"},{"field":"timestamp","type":"string"},{"field":"temperature","type":"double"},{"field":"humidity","type":"double"}]}'
 
 def create_kafka_topics_if_not_exist(bootstrap_servers, topics):
     """
@@ -146,18 +144,21 @@ if __name__ == "__main__":
         col("humidity")
     )
 
-    # Mit Schema für Kafka Connect
-    output_with_schema = output.select(
+    # Konvertiere zu JSON (einfaches Format ohne Connect-Schema)
+    # Format: {"sensor_id": "...", "timestamp": "...", "temperature": 22.5, "humidity": 65.0}
+    output_json = output.select(
         to_json(
             struct(
-                lit(SCHEMA_JSON).alias("schema"),
-                to_json(struct("sensor_id", "timestamp", "temperature", "humidity")).alias("payload")
+                col("sensor_id"),
+                col("timestamp"),
+                col("temperature"),
+                col("humidity")
             )
         ).alias("value")
     )
 
     logger.info(f"Schreibe Ergebnisse zu Kafka Topic: {TARGET_TOPIC}")
-    query = output_with_schema \
+    query = output_json \
         .writeStream \
         .format("kafka") \
         .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP) \

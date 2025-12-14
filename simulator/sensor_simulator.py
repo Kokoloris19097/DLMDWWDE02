@@ -52,7 +52,7 @@ class SensorSimulator:
             "sensor_id": self.sensor_id,
             "temperature": temperature,
             "humidity": humidity,
-            "timestamp": int(datetime.now().timestamp() * 1000)
+            "timestamp": datetime.now().isoformat()
         }
 
 

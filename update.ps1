@@ -235,7 +235,7 @@ try {
         Set-Location $scriptRoot  # Zurück zum Root
         $deployScript = Join-Path $scriptRoot "fastapi\deploy-fastapi.ps1"
         if (Test-Path $deployScript) {
-            & $deployScript
+            & $deployScript -noHelm
             if ($LASTEXITCODE -ne 0) {
                 Write-Log "WARN" "FastAPI Deployment fehlgeschlagen. Fahre ohne FastAPI-Update fort."
             }
@@ -253,7 +253,7 @@ try {
 
         $deployScript = Join-Path $scriptRoot "postgresql-connector\deploy-postgres-connector.ps1"
         if (Test-Path $deployScript) {
-            & $deployScript
+            & $deployScript -noHelm
             if ($LASTEXITCODE -ne 0) {
                 Write-Log "WARN" "Postgres Connector Deployment fehlgeschlagen. Fahre ohne Postgres Connector-Update fort."
             }

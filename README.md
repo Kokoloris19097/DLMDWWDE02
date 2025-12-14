@@ -97,7 +97,7 @@ winget install Helm.Helm
 **Hinweis:** Das Init-Skript prüft automatisch auf fehlende Tools und versucht diese via `winget` zu installieren.`
 
 **Hinweis:** Eine Default-Podman-Maschine hat mit 2GB RAM nicht genug Ressourcen für das Cluster. Bitte die Ressourcen der VM erhöhen:
-`podman machine init --memory 8192 --cpus 4 --disk-size 50`
+`podman machine init --memory 13312 --cpus 4 --disk-size 50`
 
 
 ### System deployen

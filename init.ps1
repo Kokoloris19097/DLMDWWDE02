@@ -354,7 +354,7 @@ Bitte manuell installieren:
     Write-Log "INFO" "[5/5] Führe Tests aus..."
     start-sleep -Seconds 10 # Warten bis Pods bereit sind
     Write-Log "DEBUG" "  Running pytest..."
-    Set-Location "$scriptRoot/tests"
+    Set-Location "$initScriptRoot/tests"
     pytest test_1_health.py -v --tb=short
     pytest test_2_connectivity.py  -v --tb=short
     pytest test_3_functional.py  -v --tb=short

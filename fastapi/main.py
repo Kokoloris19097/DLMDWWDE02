@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Kafka
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka.messaging.svc.cluster.local:9092')
-KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'raw-data')
+KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'sensor-data')
 SERVICE_NAME = os.getenv('SERVICE_NAME', 'fastapi')
 
 # PostgreSQL
@@ -248,8 +248,7 @@ async def ingest_sensor_data(data: SensorData):
             "sensor_id": data.sensor_id,
             "timestamp": data.timestamp.isoformat(),
             "temperature": data.temperature,
-            "humidity": data.humidity,
-            "ingestion_time": datetime.now().isoformat()
+            "humidity": data.humidity
         }
 
         # Kafka Key = Sensor-ID (für Partitionierung)
@@ -267,7 +266,7 @@ async def ingest_sensor_data(data: SensorData):
                 delivery_report['partition'] = msg.partition()
                 delivery_report['offset'] = msg.offset()
 
-        # Sende an Kafka (asynchron, dann flush für Blockierung)
+        # Sende asynchron an Kafka
         producer.produce(
             topic=KAFKA_TOPIC,
             key=message_key,

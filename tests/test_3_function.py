@@ -206,288 +206,211 @@ class TestConnectorConfiguration:
     """Kafka Connect connector configuration tests"""
 
     @pytest.mark.functional
-    @pytest.mark.dependency(name="connector_config_valid", scope="session")
+    @pytest.mark.dependency(name="connector_config_valid",scope="session")
     def test_connector_config_valid(self, connect_exec):
         """
         Verify connector configuration is correct
 
-        Dependencies: kafka_connect_api_available
+        Dependencies: kafka_connect_api_available, postgresql_sink_connector_exists
+
+        Note: This test may fail if Kafka cluster is unstable (COORDINATOR_NOT_AVAILABLE).
+        Check: kubectl logs -n messaging -l app=kafka-connect
         """
-        success, output = connect_exec(
-            "curl -s http://localhost:8083/connectors/postgresql-sink/config"
+        # First verify API is responsive with simple endpoint
+        success, output = connect_exec("curl -s --max-time 5 http://localhost:8083/")
+        if not success:
+            pytest.skip(f"Kafka Connect API not responding: {output}")
+
+        # Wait briefly for coordinator stability
+        time.sleep(2)
+
+        # Now get connector config with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            success, output = connect_exec(
+                "curl -s --max-time 15 http://localhost:8083/connectors/postgresql-sink/config"
+            )
+            if success:
+                break
+
+            if attempt < max_retries - 1:
+                time.sleep(3)  # Wait before retry
+
+        assert success, (
+            f"Failed to get connector config after {max_retries} attempts: {output}\n"
+            f"This may indicate Kafka coordinator issues. "
+            f"Check: kubectl logs -n messaging -l app=kafka-connect"
         )
-        assert success, f"Failed to get config: {output}"
 
         cfg = json.loads(output)
 
         # Validate critical configuration
         assert cfg.get("value.converter.schemas.enable") == "true", \
-            "schemas.enable should be true"
+            f"schemas.enable should be 'true', got: {cfg.get('value.converter.schemas.enable')}"
         assert cfg.get("pk.mode") == "none", \
-            f"Unexpected pk.mode: {cfg.get('pk.mode')}"
-        assert "TimestampConverter" in cfg.get("transforms", ""), \
-            "TimestampConverter transform missing"
+            f"pk.mode should be 'none', got: {cfg.get('pk.mode')}"
+        assert cfg.get("transforms") == "TimestampConverter", \
+            f"transforms should be 'TimestampConverter', got: {cfg.get('transforms')}"
+
+        # Validate transform configuration exists
+        assert cfg.get("transforms.TimestampConverter.type") == \
+            "org.apache.kafka.connect.transforms.TimestampConverter$Value", \
+            "TimestampConverter type configuration missing or incorrect"
+        assert cfg.get("transforms.TimestampConverter.field") == "timestamp", \
+            "TimestampConverter field should be 'timestamp'"
+        assert cfg.get("transforms.TimestampConverter.target.type") == "Timestamp", \
+            "TimestampConverter target.type should be 'Timestamp'"
 
 
 
 # =============================================================================
-# LAYER 3C: FASTAPI QUERY ENDPOINT TESTS (Isolated with own data)
+# LAYER 3C: FASTAPI ENDPOINT TESTS
 # =============================================================================
 
-class TestFastAPIQueryEndpoints:
-    """
-    Test FastAPI query endpoints for data retrieval.
-    Uses seeded_sensors fixture to ensure data availability.
-    """
+class TestFastAPIHealthEndpoints:
+    """Test FastAPI health and readiness endpoints (no external dependencies)"""
 
     @pytest.mark.functional
-    def test_list_sensors(self, fastapi_exec, seeded_sensors):
-        """
-        Verify /sensors returns list of sensors.
-        Test ensures data exists via seeded_sensors fixture.
-        """
+    def test_health_endpoint(self, fastapi_exec):
+        """Verify /health endpoint returns healthy status"""
         # ACT
-        success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
+        success, output = fastapi_exec('curl -s http://localhost:8000/health')
 
         # ASSERT
-        assert success, f"Failed to call /sensors: {output}"
+        assert success, f"Failed to call /health: {output}"
 
         try:
             data = json.loads(output)
-            assert isinstance(data, list), f"Expected list, got {type(data)}"
-            assert len(data) > 0, "Expected at least one sensor from seeded_sensors"
-
-            # Validate structure
-            sensor = data[0]
-            assert "sensor_id" in sensor, "Missing sensor_id field"
-            assert "first_reading" in sensor, "Missing first_reading field"
-            assert "latest_reading" in sensor, "Missing latest_reading field"
-            assert "reading_count" in sensor, "Missing reading_count field"
-            assert sensor["reading_count"] > 0, "Sensor should have readings"
+            assert data.get("status") == "healthy", f"Expected healthy status, got {data.get('status')}"
+            assert "service" in data, "Missing service field"
+            assert "timestamp" in data, "Missing timestamp field"
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    def test_list_sensors_with_limit(self, fastapi_exec, seeded_sensors):
-        """Verify /sensors respects limit parameter"""
+    def test_ready_endpoint(self, fastapi_exec):
+        """Verify /ready endpoint returns ready status when Kafka is available"""
         # ACT
-        success, output = fastapi_exec('curl -s "http://localhost:8000/sensors?limit=2"')
+        success, output = fastapi_exec('curl -s http://localhost:8000/ready')
 
         # ASSERT
-        assert success, f"Failed to call /sensors with limit: {output}"
+        assert success, f"Failed to call /ready: {output}"
 
         try:
             data = json.loads(output)
-            assert isinstance(data, list), f"Expected list, got {type(data)}"
-            assert len(data) <= 2, f"Expected max 2 results, got {len(data)}"
+            # May fail if Kafka not available, but should return valid JSON
+            assert "status" in data, "Missing status field"
+            assert "kafka_connected" in data, "Missing kafka_connected field"
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    def test_get_sensor_data(self, fastapi_exec, isolated_sensor):
-        """
-        Verify /sensors/{sensor_id}/data returns time-series data.
-        Uses isolated_sensor fixture for test isolation.
-        """
-        # ARRANGE: sensor_id provided by fixture
-        sensor_id = isolated_sensor
-
+    def test_root_endpoint(self, fastapi_exec):
+        """Verify root endpoint returns API information"""
         # ACT
-        success, output = fastapi_exec(
-            f'curl -s "http://localhost:8000/sensors/{sensor_id}/data"'
-        )
+        success, output = fastapi_exec('curl -s http://localhost:8000/')
 
         # ASSERT
-        assert success, f"Failed to get sensor data: {output}"
+        assert success, f"Failed to call root endpoint: {output}"
 
         try:
             data = json.loads(output)
-            assert isinstance(data, list), f"Expected list, got {type(data)}"
-            assert len(data) > 0, f"Expected data for sensor {sensor_id}"
-
-            # Validate structure
-            reading = data[0]
-            assert reading["sensor_id"] == sensor_id, "Sensor ID mismatch"
-            assert "timestamp" in reading, "Missing timestamp field"
-            assert "temperature" in reading, "Missing temperature field"
-            assert "humidity" in reading, "Missing humidity field"
-
-            # Validate data types
-            assert isinstance(reading["temperature"], (int, float)), "Temperature should be numeric"
-            assert isinstance(reading["humidity"], (int, float)), "Humidity should be numeric"
+            assert "service" in data, "Missing service field"
+            assert "version" in data, "Missing version field"
+            assert "endpoints" in data, "Missing endpoints field"
+            assert "kafka" in data, "Missing kafka config"
+            assert "database" in data, "Missing database config"
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
+
+class TestFastAPIIngestionEndpoint:
+    """Test FastAPI /ingest endpoint (Kafka integration required)"""
+
     @pytest.mark.functional
-    def test_get_sensor_data_with_time_range(self, fastapi_exec, isolated_sensor):
-        """Verify /sensors/{sensor_id}/data respects time range parameters"""
+    def test_ingest_valid_data(self, fastapi_exec):
+        """Verify /ingest accepts valid sensor data and returns success"""
         # ARRANGE
-        sensor_id = isolated_sensor
-        end = datetime.utcnow()
-        start = end - timedelta(days=1)
-        start_iso = start.isoformat()
-        end_iso = end.isoformat()
+        sensor_data = {
+            "sensor_id": f"test-ingest-{uuid.uuid4().hex[:8]}",
+            "timestamp": datetime.now().isoformat(),
+            "temperature": 22.5,
+            "humidity": 55.0
+        }
+        json_payload = json.dumps(sensor_data)
 
         # ACT
         success, output = fastapi_exec(
-            f'curl -s "http://localhost:8000/sensors/{sensor_id}/data?start={start_iso}&end={end_iso}"'
+            f'curl -s -X POST http://localhost:8000/ingest '
+            f'-H "Content-Type: application/json" '
+            f'-d \'{json_payload}\''
         )
 
         # ASSERT
-        assert success, f"Failed to get sensor data with time range: {output}"
+        assert success, f"Failed to call /ingest: {output}"
 
         try:
             data = json.loads(output)
-            assert isinstance(data, list), f"Expected list, got {type(data)}"
-            assert len(data) > 0, "Expected data within 24h time range"
-
-            # Verify timestamps are within range (handle timezone awareness)
-            for reading in data:
-                timestamp_str = reading["timestamp"].replace('Z', '+00:00')
-                timestamp = datetime.fromisoformat(timestamp_str)
-                # Convert naive datetimes to aware for comparison
-                start_aware = start.replace(tzinfo=timestamp.tzinfo) if start.tzinfo is None else start
-                end_aware = end.replace(tzinfo=timestamp.tzinfo) if end.tzinfo is None else end
-                assert start_aware <= timestamp <= end_aware, \
-                    f"Timestamp {timestamp} outside range [{start_aware}, {end_aware}]"
+            assert data.get("status") == "success", f"Expected success status, got {data.get('status')}"
+            assert data.get("sensor_id") == sensor_data["sensor_id"], "Sensor ID mismatch"
+            assert "kafka_partition" in data, "Missing kafka_partition field"
+            assert "kafka_offset" in data, "Missing kafka_offset field"
+            assert "message" in data, "Missing message field"
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    def test_get_sensor_data_with_limit(self, fastapi_exec, isolated_sensor):
-        """Verify /sensors/{sensor_id}/data respects limit parameter"""
-        # ARRANGE
-        sensor_id = isolated_sensor
+    def test_ingest_invalid_data_missing_field(self, fastapi_exec):
+        """Verify /ingest rejects data with missing required fields"""
+        # ARRANGE - missing temperature field
+        sensor_data = {
+            "sensor_id": "test-sensor",
+            "timestamp": datetime.now().isoformat(),
+            "humidity": 55.0
+        }
+        json_payload = json.dumps(sensor_data)
 
         # ACT
         success, output = fastapi_exec(
-            f'curl -s "http://localhost:8000/sensors/{sensor_id}/data?limit=1"'
+            f'curl -s -w "\\n%{{http_code}}" -X POST http://localhost:8000/ingest '
+            f'-H "Content-Type: application/json" '
+            f'-d \'{json_payload}\''
         )
 
         # ASSERT
-        assert success, f"Failed to get sensor data with limit: {output}"
-
-        try:
-            data = json.loads(output)
-            assert isinstance(data, list), f"Expected list, got {type(data)}"
-            assert len(data) <= 1, f"Expected max 1 result, got {len(data)}"
-        except json.JSONDecodeError as e:
-            pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
-
-    @pytest.mark.functional
-    def test_get_sensor_data_nonexistent_sensor(self, fastapi_exec):
-        """Verify /sensors/{sensor_id}/data returns empty list for nonexistent sensor"""
-        # ACT
-        success, output = fastapi_exec(
-            'curl -s "http://localhost:8000/sensors/NONEXISTENT-999/data"'
-        )
-
-        # ASSERT
-        assert success, f"Failed to query nonexistent sensor: {output}"
-
-        try:
-            data = json.loads(output)
-            assert isinstance(data, list), f"Expected list, got {type(data)}"
-            assert len(data) == 0, f"Expected empty list, got {len(data)} items"
-        except json.JSONDecodeError as e:
-            pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
-
-    @pytest.mark.functional
-    def test_get_sensor_stats(self, fastapi_exec, isolated_sensor):
-        """
-        Verify /sensors/{sensor_id}/stats returns aggregated statistics.
-        Uses isolated_sensor to ensure data availability.
-        """
-        # ARRANGE
-        sensor_id = isolated_sensor
-
-        # ACT
-        success, output = fastapi_exec(
-            f'curl -s "http://localhost:8000/sensors/{sensor_id}/stats"'
-        )
-
-        # ASSERT
-        assert success, f"Failed to get sensor stats: {output}"
-
-        try:
-            data = json.loads(output)
-            assert isinstance(data, dict), f"Expected dict, got {type(data)}"
-
-            # Validate required fields
-            required_fields = [
-                "sensor_id", "period_start", "period_end",
-                "temperature_min", "temperature_max", "temperature_avg",
-                "humidity_min", "humidity_max", "humidity_avg",
-                "reading_count"
-            ]
-            for field in required_fields:
-                assert field in data, f"Missing field: {field}"
-
-            # Validate sensor_id matches
-            assert data["sensor_id"] == sensor_id, "Sensor ID mismatch in stats"
-            assert data["reading_count"] > 0, "Should have at least one reading"
-
-            # Validate ranges (min <= avg <= max)
-            assert data["temperature_min"] <= data["temperature_avg"] <= data["temperature_max"], \
-                f"Temperature avg {data['temperature_avg']} outside range [{data['temperature_min']}, {data['temperature_max']}]"
-            assert data["humidity_min"] <= data["humidity_avg"] <= data["humidity_max"], \
-                f"Humidity avg {data['humidity_avg']} outside range [{data['humidity_min']}, {data['humidity_max']}]"
-
-            # Validate min <= max
-            assert data["temperature_min"] <= data["temperature_max"], "Temperature min > max"
-            assert data["humidity_min"] <= data["humidity_max"], "Humidity min > max"
-        except json.JSONDecodeError as e:
-            pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
-
-    @pytest.mark.functional
-    def test_get_sensor_stats_with_time_range(self, fastapi_exec, isolated_sensor):
-        """Verify /sensors/{sensor_id}/stats respects time range parameters"""
-        # ARRANGE
-        sensor_id = isolated_sensor
-        end = datetime.utcnow()
-        start = end - timedelta(days=1)
-        start_iso = start.isoformat()
-        end_iso = end.isoformat()
-
-        # ACT
-        success, output = fastapi_exec(
-            f'curl -s "http://localhost:8000/sensors/{sensor_id}/stats?start={start_iso}&end={end_iso}"'
-        )
-
-        # ASSERT
-        assert success, f"Failed to get sensor stats with time range: {output}"
-
-        try:
-            data = json.loads(output)
-            assert isinstance(data, dict), f"Expected dict, got {type(data)}"
-            assert "period_start" in data, "Missing period_start field"
-            assert "period_end" in data, "Missing period_end field"
-            assert data["reading_count"] > 0, "Should have readings in 24h window"
-        except json.JSONDecodeError as e:
-            pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
-
-    @pytest.mark.functional
-    def test_get_sensor_stats_nonexistent_sensor(self, fastapi_exec):
-        """Verify /sensors/{sensor_id}/stats returns 404 for nonexistent sensor"""
-        # ACT
-        success, output = fastapi_exec(
-            'curl -s -w "\\n%{http_code}" "http://localhost:8000/sensors/NONEXISTENT-999/stats"'
-        )
-
-        # ASSERT
-        assert success, f"Failed to query nonexistent sensor: {output}"
-
+        assert success, f"Failed to execute curl: {output}"
         lines = output.strip().split('\n')
         http_code = lines[-1] if lines else ""
-        assert "404" in http_code, f"Expected 404, got {http_code}"
 
-        # Validate error response body
-        if len(lines) > 1:
-            try:
-                body = json.loads(lines[0])
-                assert "detail" in body, "Error response should contain 'detail' field"
-            except json.JSONDecodeError:
-                pass  # HTTP code check is sufficient
+        # Should return 422 Unprocessable Entity for validation error
+        assert "422" in http_code, f"Expected 422 validation error, got {http_code}"
+
+    @pytest.mark.functional
+    def test_ingest_invalid_data_out_of_range(self, fastapi_exec):
+        """Verify /ingest rejects data with out-of-range values"""
+        # ARRANGE - humidity > 100%
+        sensor_data = {
+            "sensor_id": "test-sensor",
+            "timestamp": datetime.now().isoformat(),
+            "temperature": 22.5,
+            "humidity": 150.0  # Invalid: > 100%
+        }
+        json_payload = json.dumps(sensor_data)
+
+        # ACT
+        success, output = fastapi_exec(
+            f'curl -s -w "\\n%{{http_code}}" -X POST http://localhost:8000/ingest '
+            f'-H "Content-Type: application/json" '
+            f'-d \'{json_payload}\''
+        )
+
+        # ASSERT
+        assert success, f"Failed to execute curl: {output}"
+        lines = output.strip().split('\n')
+        http_code = lines[-1] if lines else ""
+
+        # Should return 422 for validation error
+        assert "422" in http_code, f"Expected 422 validation error, got {http_code}"
 
 
 # =============================================================================

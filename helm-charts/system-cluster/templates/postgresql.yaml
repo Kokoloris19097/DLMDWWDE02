@@ -120,18 +120,19 @@ data:
       -- SECTION 2: Analytics-Tabelle erstellen
       -- =============================================================================
       CREATE TABLE IF NOT EXISTS analytics_data (
-        id BIGSERIAL PRIMARY KEY,
         sensor_id VARCHAR(50) NOT NULL,
         timestamp TIMESTAMPTZ NOT NULL,
         temperature DECIMAL(5,2),
         humidity DECIMAL(5,2),
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (sensor_id, timestamp)
       );
 
       -- =============================================================================
       -- SECTION 3: Indizes für Performance
       -- =============================================================================
-      CREATE INDEX IF NOT EXISTS idx_analytics_data_sensor_id ON analytics_data(sensor_id);
+      -- Composite PK erstellt automatisch Index auf (sensor_id, timestamp)
+      -- Zusätzlicher Index für timestamp-only Queries
       CREATE INDEX IF NOT EXISTS idx_analytics_data_timestamp ON analytics_data(timestamp DESC);
 
       -- =============================================================================

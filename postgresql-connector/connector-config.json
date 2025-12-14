@@ -7,11 +7,12 @@
     "connection.url": "jdbc:postgresql://postgresql.data.svc.cluster.local:5432/sensordata",
     "connection.user": "appuser",
     "connection.password": "appuser-secure-pw",
-    "insert.mode": "insert",
-    "auto.create": "true",
+    "insert.mode": "upsert",
+    "auto.create": "false",
     "auto.evolve": "true",
     "table.name.format": "analytics_data",
-    "pk.mode": "none",
+    "pk.mode": "record_value",
+    "pk.fields": "sensor_id,timestamp",
     "delete.enabled": "false",
     "fields.whitelist": "sensor_id,timestamp,temperature,humidity",
     "transforms": "TimestampConverter",
@@ -21,6 +22,6 @@
     "transforms.TimestampConverter.target.type": "Timestamp",
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "value.converter.schemas.enable": "true"
+    "value.converter.schemas.enable": "false"
   }
 }
