@@ -251,13 +251,13 @@ class TestConnectorConfiguration:
             "connection.password",
             "topics",
             "table.name.format",
-            "transforms",
-            "transforms.TimestampConverter.type",
-            "transforms.TimestampConverter.field",
-            "transforms.TimestampConverter.format",
-            "transforms.TimestampConverter.target.type",
+            "insert.mode",
+            "pk.mode",
+            "auto.create",
+            "auto.evolve",
             "key.converter",
-            "value.converter"
+            "value.converter",
+            "value.converter.schemas.enable"
         ]
         for field in required_fields:
             assert field in cfg, f"Konfigurationsfeld fehlt: {field}"
