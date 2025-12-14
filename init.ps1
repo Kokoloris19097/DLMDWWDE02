@@ -364,7 +364,7 @@ Bitte manuell installieren:
     Write-Log "INFO" "Starte Port-Forwarding Skript..."
     $portForwardScript = Join-Path $initScriptRoot "port-forward.ps1"
     if (Test-Path $portForwardScript) {
-        Start-Process -FilePath "cmd.exe" -ArgumentList "/k pwsh -File `"$portForwardScript`"" -WindowStyle Minimized
+        Start-Process -FilePath "pwsh.exe" -ArgumentList "-NoExit", "-Command", "& '$portForwardScript'" -WindowStyle Minimized
         Write-Log "SUCCESS" "Port-Forwarding in neuem Prozess gestartet"
     } else {
         Write-Log "WARN" "port-forward.ps1 nicht gefunden."
