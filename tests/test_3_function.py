@@ -771,20 +771,24 @@ class TestGrafanaDatasourceAndDashboards:
 
 
 # =============================================================================
-# LAYER 3F: END-TO-END PIPELINE TESTS
+# LAYER 3F: KAFKA CONNECT SINK TESTS
 # =============================================================================
 
-class TestPipelineEndToEnd:
-    """End-to-end pipeline tests"""
+class TestKafkaConnectSink:
+    """Test Kafka Connect JDBC Sink: analytics-data topic → PostgreSQL"""
 
     @pytest.mark.functional
     @pytest.mark.slow
     @pytest.mark.dependency(name="message_to_postgresql", scope="session")
-    def test_message_to_postgresql(
+    def test_kafka_to_postgresql_via_connector(
         self, kafka_exec, postgres_exec, connect_exec, test_message, config
     ):
         """
-        Test complete pipeline: Kafka message -> PostgreSQL
+        Test Kafka Connect JDBC Sink: analytics-data topic → PostgreSQL
+
+        This tests ONLY the sink connector, NOT the full pipeline.
+        For full end-to-end testing (FastAPI → Spark → PostgreSQL),
+        use TestCompleteEndToEndWorkflow.
 
         Dependencies: topic_exists, postgresql_sink_connector_running,
                       connect_to_kafka_broker, connect_to_postgresql,
@@ -817,6 +821,18 @@ class TestPipelineEndToEnd:
 
     def _send_kafka_message(self, message: str, config):
         """Send a message to Kafka topic"""
+        # Debug: Print message being sent
+        print(f"\n[DEBUG] Sending message to topic '{config.ANALYTICS_DATA_TOPIC}':")
+        try:
+            msg_obj = json.loads(message)
+            print(f"  sensor_id: {msg_obj['payload']['sensor_id']}")
+            print(f"  timestamp: {msg_obj['payload']['timestamp']}")
+            print(f"  temperature: {msg_obj['payload']['temperature']}")
+            print(f"  humidity: {msg_obj['payload']['humidity']}")
+            print(f"  Schema present: {'schema' in msg_obj}")
+        except:
+            print(f"  Raw message: {message[:200]}...")
+        
         cmd = [
             "kubectl", "exec", "-i", "kafka-broker-0",
             "-n", config.MESSAGING_NAMESPACE,
@@ -832,9 +848,15 @@ class TestPipelineEndToEnd:
             text=True,
             timeout=config.COMMAND_TIMEOUT
         )
+        
+        if result.returncode != 0:
+            print(f"[ERROR] Failed to send message: {result.stderr}")
+        else:
+            print(f"[SUCCESS] Message sent successfully")
+            
         assert result.returncode == 0, f"Failed to send message: {result.stderr}"
 
-    def _wait_for_message(self, postgres_exec, test_id: str, config, max_wait: int = 15):
+    def _wait_for_message(self, postgres_exec, test_id: str, config, max_wait: int = 30):
         """Wait for message to appear in PostgreSQL"""
         query = (
             f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c "
@@ -842,14 +864,35 @@ class TestPipelineEndToEnd:
             f"WHERE sensor_id = '{test_id}'\""
         )
 
-        for _ in range(max_wait):
+        for i in range(max_wait):
             time.sleep(1)
             success, output = postgres_exec(query)
 
             if success and output.strip().isdigit() and int(output.strip()) > 0:
                 return
+            
+            # Debug output every 5 seconds
+            if (i + 1) % 5 == 0:
+                print(f"  [{i+1}s] Still waiting for message (sensor_id={test_id})...")
 
-        pytest.fail(f"Message not found in PostgreSQL after {max_wait} seconds")
+        # Final debug: Check if any data exists in table
+        all_query = f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c \"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE}\""
+        success, total_count = postgres_exec(all_query)
+        
+        # Check recent entries
+        recent_query = (
+            f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c "
+            f"\"SELECT sensor_id, timestamp, temperature FROM {config.POSTGRESQL_TABLE} "
+            f"ORDER BY created_at DESC LIMIT 5\""
+        )
+        success, recent = postgres_exec(recent_query)
+        
+        pytest.fail(
+            f"Message not found in PostgreSQL after {max_wait} seconds.\n"
+            f"Expected sensor_id: {test_id}\n"
+            f"Total rows in table: {total_count.strip() if success else 'unknown'}\n"
+            f"Recent entries:\n{recent if success else 'unable to query'}"
+        )
 
     def _verify_data_integrity(self, postgres_exec, test_id: str, config):
         """Verify the data was correctly stored"""

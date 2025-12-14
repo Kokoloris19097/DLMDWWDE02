@@ -294,25 +294,29 @@ def get_pod_names(config) -> Callable:
 
 @pytest.fixture
 def test_message():
-    """Generate unique test message for pipeline tests"""
+    """Generate unique test message for analytics-data topic (Spark output format)"""
     test_id = f"test-{uuid.uuid4().hex[:8]}"
-    # Use current timestamp to ensure test data falls within default query ranges (last 7 days)
-    current_timestamp_ms = int(datetime.now().timestamp() * 1000)
+    # Spark writes timestamp as Unix seconds (not milliseconds)
+    current_timestamp_sec = int(datetime.now().timestamp())
+
+    # Match Spark's output format with nested schema structure
     message = json.dumps({
         "schema": {
             "type": "struct",
             "fields": [
-                {"field": "sensor_id", "type": "string"},
-                {"field": "temperature", "type": "double"},
-                {"field": "humidity", "type": "double"},
-                {"field": "timestamp", "type": "int64", "name": "org.apache.kafka.connect.data.Timestamp"}
-            ]
+                {"field": "sensor_id", "type": "string", "optional": False},
+                {"field": "timestamp", "type": "int64", "optional": False},
+                {"field": "temperature", "type": "double", "optional": False},
+                {"field": "humidity", "type": "double", "optional": False}
+            ],
+            "optional": False,
+            "name": "analytics_data"
         },
         "payload": {
             "sensor_id": test_id,
+            "timestamp": current_timestamp_sec,
             "temperature": 22.5,
-            "humidity": 55.0,
-            "timestamp": current_timestamp_ms
+            "humidity": 55.0
         }
     })
     return {"id": test_id, "message": message}
