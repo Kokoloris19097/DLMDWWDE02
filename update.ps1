@@ -427,7 +427,19 @@ try {
         do {
             Start-Sleep -Seconds $waitingTime
             $pods = kubectl get pods -A -o json | ConvertFrom-Json
-            $notReady = $pods.items | Where-Object { $_.status.phase -ne "Running" }
+            $notReady = $pods.items | Where-Object {
+            # Pod ist nicht running ODER
+            $_.status.phase -ne "Running" -or
+            # Mindestens ein Container ist nicht ready ODER
+            ($_.status.containerStatuses | Where-Object { $_.ready -eq $false }) -or
+            # Pod ist in CrashLoopBackOff oder ImagePullBackOff
+            ($_.status.containerStatuses | Where-Object {
+                $_.state.waiting -and
+                ($_.state.waiting.reason -eq 'CrashLoopBackOff' -or
+                 $_.state.waiting.reason -eq 'ImagePullBackOff' -or
+                 $_.state.waiting.reason -eq 'ErrImagePull')
+            })
+        }
             $retry++
         } while ($notReady.Count -gt 0 -and $retry -lt $maxRetries)
         if ($notReady.Count -gt 0) {
@@ -436,7 +448,7 @@ try {
     }
 
     Write-Log "INFO" "[5/5] Führe Tests aus..."
-    start-sleep -Seconds 10 # Warten bis Pods bereit sind
+    start-sleep -Seconds 30 # Warten bis Pods bereit sind
     Write-Log "DEBUG" "  Running pytest..."
     Set-Location "$scriptRoot/tests"
     pytest test_1_health.py -v --tb=short

@@ -377,8 +377,8 @@ async def list_all_sensors(limit: int = 50):
                     """
                     SELECT
                         sensor_id,
-                        MIN(timestamp) AS first_reading,
-                        MAX(timestamp) AS latest_reading,
+                        to_timestamp(MIN(timestamp)) AS first_reading,
+                        to_timestamp(MAX(timestamp)) AS latest_reading,
                         COUNT(*) AS reading_count
                     FROM analytics_data
                     GROUP BY sensor_id
@@ -434,10 +434,14 @@ async def get_sensor_data(
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     """
-                    SELECT sensor_id, timestamp, temperature, humidity
+                    SELECT
+                        sensor_id,
+                        to_timestamp(timestamp) AS timestamp,
+                        temperature,
+                        humidity
                     FROM analytics_data
                     WHERE sensor_id = %s
-                      AND timestamp BETWEEN %s AND %s
+                      AND to_timestamp(timestamp) BETWEEN %s AND %s
                     ORDER BY timestamp DESC
                     LIMIT %s
                     """,
@@ -498,7 +502,7 @@ async def get_sensor_stats(
                         COUNT(*) AS reading_count
                     FROM analytics_data
                     WHERE sensor_id = %s
-                      AND timestamp BETWEEN %s AND %s
+                      AND to_timestamp(timestamp) BETWEEN %s AND %s
                     GROUP BY sensor_id
                     """,
                     (sensor_id, start, end)

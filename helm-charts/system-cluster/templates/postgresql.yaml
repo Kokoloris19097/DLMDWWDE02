@@ -121,7 +121,7 @@ data:
       -- =============================================================================
       CREATE TABLE IF NOT EXISTS analytics_data (
         sensor_id VARCHAR(50) NOT NULL,
-        timestamp TIMESTAMPTZ NOT NULL,
+        timestamp BIGINT NOT NULL,
         temperature DECIMAL(5,2),
         humidity DECIMAL(5,2),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

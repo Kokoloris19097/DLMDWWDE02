@@ -139,20 +139,33 @@ if __name__ == "__main__":
 
     output = agg.select(
         col("sensor_id"),
-        date_format(col("window.start"), "yyyy-MM-dd'T'HH:mm:ss'Z'").alias("timestamp"),
+        col("window.start").cast("long").alias("timestamp"),  # Unix-Timestamp in Sekunden
         col("temperature"),
         col("humidity")
     )
 
-    # Konvertiere zu JSON (einfaches Format ohne Connect-Schema)
-    # Format: {"sensor_id": "...", "timestamp": "...", "temperature": 22.5, "humidity": 65.0}
+    # Konvertiere zu JSON MIT Schema (Kafka Connect JDBC Sink kompatibel)
+    # Format: {"schema": {...}, "payload": {...}}
     output_json = output.select(
         to_json(
             struct(
-                col("sensor_id"),
-                col("timestamp"),
-                col("temperature"),
-                col("humidity")
+                struct(
+                    lit("struct").alias("type"),
+                    array(
+                        struct(lit("sensor_id").alias("field"), lit("string").alias("type"), lit(False).alias("optional")),
+                        struct(lit("timestamp").alias("field"), lit("int64").alias("type"), lit(False).alias("optional")),
+                        struct(lit("temperature").alias("field"), lit("double").alias("type"), lit(False).alias("optional")),
+                        struct(lit("humidity").alias("field"), lit("double").alias("type"), lit(False).alias("optional"))
+                    ).alias("fields"),
+                    lit(False).alias("optional"),
+                    lit("analytics_data").alias("name")
+                ).alias("schema"),
+                struct(
+                    col("sensor_id"),
+                    col("timestamp"),
+                    col("temperature"),
+                    col("humidity")
+                ).alias("payload")
             )
         ).alias("value")
     )
