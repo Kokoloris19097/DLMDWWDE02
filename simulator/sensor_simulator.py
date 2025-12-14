@@ -6,7 +6,7 @@ import time
 import random
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List
 import logging
 import sys
@@ -48,11 +48,13 @@ class SensorSimulator:
         temperature = max(-10.0, min(40.0, temperature))
         humidity = max(30.0, min(99.0, humidity))
 
+        # Timestamp um 1 Sekunde zurücksetzen, um Zeitabweichungen zu vermeiden zu vermeiden
+        ts = datetime.now() - timedelta(seconds=1)
         return {
             "sensor_id": self.sensor_id,
             "temperature": temperature,
             "humidity": humidity,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": ts.isoformat()
         }
 
 
