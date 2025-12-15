@@ -3,6 +3,7 @@ $releaseName = "system-cluster"
 $chartPath = "helm-charts\$releaseName"
 $global:update_starttime = Get-Date
 $scriptRoot = $PSScriptRoot
+$clusterContainerName = "$releaseName-control-plane"
 $env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 
 function Write-Log {
@@ -81,18 +82,7 @@ try {
         exit 1
     }
 
-    # 0.2 Kind Cluster prüfen
-    Write-Log "DEBUG" "  Prüfe Kind Cluster Status..."
-    $clusterExists = kind get clusters 2>$null | Select-String -Pattern "^$releaseName$"
-
-    if (-not $clusterExists) {
-        Write-Log "ERROR" "Cluster '$releaseName' existiert nicht!"
-        exit 1
-    }
-
-    Write-Log "SUCCESS" "  Cluster '$releaseName' existiert"
-
-    # 0.3 Cluster Erreichbarkeit prüfen
+    # 0.2 Cluster Erreichbarkeit prüfen
     Write-Log "DEBUG" "  Prüfe Cluster Erreichbarkeit..."
     kubectl cluster-info --context kind-$releaseName 2>$null | Out-Null
 
@@ -380,19 +370,21 @@ try {
         foreach ($pod in $pods) {
             if ($pod.status -and $pod.status.containerStatuses) {
                 foreach ($container in $pod.status.containerStatuses) {
+                    $ready = $container.ready
                     $stateName = $container.state.PSObject.Properties.Name
-                    if ($stateName -ne 'running') {
-                        $reason = $null
-                        if ($container.state.$stateName -and $container.state.$stateName.reason) {
-                            $reason = $container.state.$stateName.reason
-                        } elseif ($container.state.$stateName -and $container.state.$stateName.message) {
-                            $reason = $container.state.$stateName.message
-                        } else {
-                            $reason = $stateName
-                        }
+                    $reason = $null
+                    if ($container.state.$stateName -and $container.state.$stateName.reason) {
+                        $reason = $container.state.$stateName.reason
+                    } elseif ($container.state.$stateName -and $container.state.$stateName.message) {
+                        $reason = $container.state.$stateName.message
+                    } else {
+                        $reason = $stateName
+                    }
+                    if (-not $ready -or $stateName -ne 'running') {
                         $nonRunning += [PSCustomObject]@{
                             Namespace = $pod.metadata.namespace
                             Name      = $pod.metadata.name
+                            Container = $container.name
                             Phase     = $pod.status.phase
                             Status    = $stateName
                             Reason    = $reason
@@ -401,10 +393,10 @@ try {
                 }
             }
         }
-        if ($nonRunningPods) {
+        if ($nonRunning.Count -gt 0) {
             $nonRunning | Format-Table -AutoSize
         } else {
-            Write-Log "SUCCESS" "Alle Pods sind im Status 'Running'."
+            Write-Host "Alle Pods/Container sind im Status 'Running'."
         }
         exit 1
     }

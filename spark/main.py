@@ -139,7 +139,7 @@ if __name__ == "__main__":
 
     output = agg.select(
         col("sensor_id"),
-        col("window.start").cast("long").alias("timestamp"),  # Unix-Timestamp in Sekunden
+        (col("window.start").cast("long") * 1000).alias("timestamp"),  # Unix-Timestamp in Millisekunden
         col("temperature"),
         col("humidity")
     )
