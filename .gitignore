@@ -61,6 +61,7 @@ MANIFEST
 helm-charts/**/charts/*.tgz
 *.tgz
 *.lock
+*.tar
 
 .github/*
 .coverage
