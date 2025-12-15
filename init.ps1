@@ -3,6 +3,7 @@ $clusterName = "system-cluster"
 $env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 $initScriptRoot = $PSScriptRoot
 $chartPath = Join-Path $initScriptRoot "helm-charts/$clusterName"
+$pathShowBadPodLogsScript = "./tools/show-bad-pod-logs.ps1"
 
 $global:init_starttime = Get-Date
 function Write-Log {
@@ -26,6 +27,24 @@ function Write-Log {
     $delay = $((Get-Date) - $init_starttime).TotalSeconds.ToString("F2")
     Write-Host "[init $delay s] $Message" -ForegroundColor $color
 }
+
+function New-SystemCluster {
+        param([string]$clusterName)
+        $kindConfig = Join-Path $PSScriptRoot "kind-config.yaml"
+        if (Test-Path $kindConfig) {
+            Write-Log "DEBUG" "  Nutze Kind-Konfiguration..."
+            kind create cluster --config $kindConfig --wait 120s
+        } else {
+            Write-Log "WARN" "kind-config.yaml nicht gefunden. Erstelle Cluster ohne."
+            kind create cluster --name $clusterName --wait 120s
+        }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "ERROR" "Cluster-Erstellung fehlgeschlagen!"
+            exit 1
+        }
+        Write-Log "SUCCESS" "Cluster erstellt"
+}
+
 Push-Location $PSScriptRoot
 Write-Log "INFO" "System Cluster Installation"
 try {
@@ -130,23 +149,21 @@ Bitte manuell installieren:
 
     if (-not $clusterExists) {
         Write-Log "DEBUG" "Erstelle neuen Cluster '$clusterName'..."
-        # Prüfe ob kind-config.yaml existiert
-        $kindConfig = Join-Path $PSScriptRoot "kind-config.yaml"
-        if (Test-Path $kindConfig) {
-            Write-Log "DEBUG" "  Nutze Kind-Konfiguration..."
-            kind create cluster --config $kindConfig --wait 120s
-        } else {
-            Write-Log "WARN" "kind-config.yaml nicht gefunden. Erstelle Cluster ohne."
-            kind create cluster --name $clusterName --wait 120s
-        }
-
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log "ERROR" "Cluster-Erstellung fehlgeschlagen!"
-            exit 1
-        }
-        Write-Log "SUCCESS" "Cluster erstellt"
+        New-SystemCluster -clusterName $clusterName
     } else {
         Write-Log "SUCCESS" "Cluster vorhanden"
+        Write-Log "WARN" "Ein Cluster mit dem Namen '$clusterName' existiert bereits."
+        $deleteOld = Read-Host "Möchtest du das alte Cluster löschen und neu erstellen? (j/n)"
+        if ($deleteOld -eq "j") {
+            Write-Log "INFO" "Lösche bestehenden Cluster '$clusterName'..."
+            kind delete cluster --name $clusterName
+            if ($LASTEXITCODE -ne 0) {
+                Write-Log "ERROR" "Cluster konnte nicht gelöscht werden!"
+                exit 1
+            }
+            Write-Log "SUCCESS" "Cluster gelöscht. Erstelle neuen Cluster..."
+            New-SystemCluster -clusterName $clusterName
+        }
     }
     #endregion Cluster erstellen/prüfen
 
@@ -302,39 +319,7 @@ Bitte manuell installieren:
     if ($LASTEXITCODE -ne 0) {
         Write-Log "ERROR" "$action fehlgeschlagen!"
         Write-Log "INFO" "Pods mit Status ungleich 'Running':"
-        $pods = (kubectl get pods -A -o json | ConvertFrom-Json).items
-
-        # Filtere Pods, bei denen mindestens ein Container nicht im Status 'running' ist
-        $nonRunning = @()
-        foreach ($pod in $pods) {
-            if ($pod.status -and $pod.status.containerStatuses) {
-                foreach ($container in $pod.status.containerStatuses) {
-                    $stateName = $container.state.PSObject.Properties.Name
-                    if ($stateName -ne 'running') {
-                        $reason = $null
-                        if ($container.state.$stateName -and $container.state.$stateName.reason) {
-                            $reason = $container.state.$stateName.reason
-                        } elseif ($container.state.$stateName -and $container.state.$stateName.message) {
-                            $reason = $container.state.$stateName.message
-                        } else {
-                            $reason = $stateName
-                        }
-                        $nonRunning += [PSCustomObject]@{
-                            Namespace = $pod.metadata.namespace
-                            Name      = $pod.metadata.name
-                            Phase     = $pod.status.phase
-                            Status    = $stateName
-                            Reason    = $reason
-                        }
-                    }
-                }
-            }
-        }
-        if ($nonRunningPods) {
-            $nonRunning | Format-Table -AutoSize
-        } else {
-            Write-Log "SUCCESS" "Alle Pods sind im Status 'Running'."
-        }
+        & $pathShowBadPodLogsScript
         exit 1
     }
     Write-Log "SUCCESS" "$action erfolgreich"

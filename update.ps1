@@ -4,6 +4,7 @@ $chartPath = "helm-charts\$releaseName"
 $global:update_starttime = Get-Date
 $scriptRoot = $PSScriptRoot
 $clusterContainerName = "$releaseName-control-plane"
+$pathShowBadPodLogsScript = "./tools/show-bad-pod-logs.ps1"
 $env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 
 function Write-Log {
@@ -364,40 +365,7 @@ try {
         Write-Log "WARN" "Rollback verfügbar mit:"
         Write-Log "DEBUG" "  helm rollback $releaseName 0 --namespace default"
         Write-Log "INFO" "Pods mit Status ungleich 'Running':"
-        # Filtere Pods, bei denen mindestens ein Container nicht im Status 'running' ist
-        $pods = (kubectl get pods -A -o json | ConvertFrom-Json).items
-        $nonRunning = @()
-        foreach ($pod in $pods) {
-            if ($pod.status -and $pod.status.containerStatuses) {
-                foreach ($container in $pod.status.containerStatuses) {
-                    $ready = $container.ready
-                    $stateName = $container.state.PSObject.Properties.Name
-                    $reason = $null
-                    if ($container.state.$stateName -and $container.state.$stateName.reason) {
-                        $reason = $container.state.$stateName.reason
-                    } elseif ($container.state.$stateName -and $container.state.$stateName.message) {
-                        $reason = $container.state.$stateName.message
-                    } else {
-                        $reason = $stateName
-                    }
-                    if (-not $ready -or $stateName -ne 'running') {
-                        $nonRunning += [PSCustomObject]@{
-                            Namespace = $pod.metadata.namespace
-                            Name      = $pod.metadata.name
-                            Container = $container.name
-                            Phase     = $pod.status.phase
-                            Status    = $stateName
-                            Reason    = $reason
-                        }
-                    }
-                }
-            }
-        }
-        if ($nonRunning.Count -gt 0) {
-            $nonRunning | Format-Table -AutoSize
-        } else {
-            Write-Host "Alle Pods/Container sind im Status 'Running'."
-        }
+        & $pathShowBadPodLogsScript
         exit 1
     }
 
