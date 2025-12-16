@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # UMGEBUNGSVARIABLEN
 # =============================================================================
+timezone = UTC
 
 # Kafka
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka.messaging.svc.cluster.local:9092')
@@ -119,7 +120,7 @@ class SensorData(BaseModel):
         - Warnung: > 5 Minuten in Zukunft oder > 10 Stunden in Vergangenheit
         - Akzeptiert: Alle anderen Werte
         """
-        now = datetime.now(v.tzinfo) if v.tzinfo else datetime.now()
+        now = datetime.now(v.tzinfo) if v.tzinfo else datetime.now(timezone)
 
         # Unplausible Werte: Ablehnen
         max_future = timedelta(days=1)
@@ -255,7 +256,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": SERVICE_NAME,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now(timezone).isoformat()
     }
 
 
@@ -270,7 +271,7 @@ async def readiness_check():
             "status": "ready",
             "service": SERVICE_NAME,
             "kafka_connected": True,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone).isoformat()
         }
     except Exception as e:
         logger.error(f"Readiness Check fehlgeschlagen: {e}")
@@ -338,7 +339,7 @@ async def ingest_sensor_data(data: SensorData):
             sensor_id=data.sensor_id,
             kafka_partition=delivery_report.get('partition', -1),
             kafka_offset=delivery_report.get('offset', -1),
-            timestamp=datetime.now()
+            timestamp=datetime.now(timezone)
         )
 
     except KafkaException as e:
@@ -377,17 +378,22 @@ async def list_all_sensors(limit: int = 50):
                     """
                     SELECT
                         sensor_id,
-                        to_timestamp(MIN(timestamp) / 1000.0) AS first_reading,
-                        to_timestamp(MAX(timestamp) / 1000.0) AS latest_reading,
+                        MIN(timestamp) AS first_ts,
+                        MAX(timestamp) AS latest_ts,
                         COUNT(*) AS reading_count
                     FROM analytics_data
                     GROUP BY sensor_id
-                    ORDER BY latest_reading DESC
+                    ORDER BY latest_ts DESC
                     LIMIT %s
                     """,
                     (limit,)
                 )
                 rows = cur.fetchall()
+
+                # Berechnung der Timestamps in Python
+                for row in rows:
+                    row['first_reading'] = datetime.fromtimestamp(row['first_ts'] / 1000.0, tz=timezone)
+                    row['latest_reading'] = datetime.fromtimestamp(row['latest_ts'] / 1000.0, tz=timezone)
 
         if not rows:
             return []
@@ -422,7 +428,7 @@ async def get_sensor_data(
     """
     # Default: letzte 7 Tage
     if not end:
-        end = datetime.now(UTC)
+        end = datetime.now(timezone)
     if not start:
         start = end - timedelta(days=7)
 
@@ -436,16 +442,16 @@ async def get_sensor_data(
                     """
                     SELECT
                         sensor_id,
-                        to_timestamp(timestamp / 1000.0) AS timestamp,
+                        timestamp,
                         temperature,
                         humidity
                     FROM analytics_data
                     WHERE sensor_id = %s
-                      AND to_timestamp(timestamp / 1000.0) BETWEEN %s AND %s
+                        AND timestamp BETWEEN %s AND %s
                     ORDER BY timestamp DESC
                     LIMIT %s
                     """,
-                    (sensor_id, start, end, limit)
+                    (sensor_id, int(start.timestamp() * 1000), int(end.timestamp() * 1000), limit)
                 )
                 rows = cur.fetchall()
 
@@ -482,7 +488,7 @@ async def get_sensor_stats(
     Liefert: min, max, avg für Temperatur und Luftfeuchtigkeit
     """
     if not end:
-        end = datetime.now(UTC)
+        end = datetime.now(timezone)
     if not start:
         start = end - timedelta(days=7)
 
@@ -502,10 +508,10 @@ async def get_sensor_stats(
                         COUNT(*) AS reading_count
                     FROM analytics_data
                     WHERE sensor_id = %s
-                      AND to_timestamp(timestamp) BETWEEN %s AND %s
+                      AND timestamp BETWEEN %s AND %s
                     GROUP BY sensor_id
                     """,
-                    (sensor_id, start, end)
+                    (sensor_id, int(start.timestamp() * 1000), int(end.timestamp() * 1000))
                 )
                 row = cur.fetchone()
 

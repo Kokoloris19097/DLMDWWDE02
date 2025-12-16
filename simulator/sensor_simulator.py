@@ -6,7 +6,7 @@ import time
 import random
 import requests
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Dict, List
 import logging
 import sys
@@ -23,9 +23,8 @@ logger = logging.getLogger(__name__)
 class SensorSimulator:
     """Simuliert einen einzelnen Sensor mit realistischen Werten"""
 
-    def __init__(self, sensor_id: str, sensor_type: str, base_temp: float, base_humidity: float):
+    def __init__(self, sensor_id: str, base_temp: float, base_humidity: float):
         self.sensor_id = sensor_id
-        self.sensor_type = sensor_type
         self.base_temp = base_temp
         self.base_humidity = base_humidity
         self.temp_drift = 0.0
@@ -47,14 +46,12 @@ class SensorSimulator:
         # Werte in realistischen Bereichen halten
         temperature = max(-10.0, min(40.0, temperature))
         humidity = max(30.0, min(99.0, humidity))
-
-        # Timestamp um 1 Sekunde zurücksetzen, um Zeitabweichungen zu vermeiden zu vermeiden
-        ts = datetime.now() - timedelta(seconds=1)
+        timestamp = datetime.now(UTC)
         return {
             "sensor_id": self.sensor_id,
             "temperature": temperature,
             "humidity": humidity,
-            "timestamp": ts.isoformat()
+            "timestamp": timestamp.isoformat()
         }
 
 
@@ -75,31 +72,14 @@ class DataSimulator:
 
     def initialize_sensors(self):
         """Initialisiert dynamisch die gewünschte Anzahl an Sensoren"""
-        # Basis-Konfigurationen für verschiedene Sensor-Typen
-        sensor_types = [
-            {"type": "Datacenter Rack", "base_temp": 22.0, "base_humidity": 45.0},
-            {"type": "Server Room", "base_temp": 21.0, "base_humidity": 42.0},
-            {"type": "Cooling Unit", "base_temp": 19.5, "base_humidity": 55.0},
-            {"type": "Storage Area", "base_temp": 24.0, "base_humidity": 48.0},
-            {"type": "Network Equipment", "base_temp": 23.0, "base_humidity": 47.0}
-        ]
-
         for i in range(self.num_sensors):
-            # Wähle Sensor-Typ rotierend aus
-            sensor_type_config = sensor_types[i % len(sensor_types)]
-
-            # Füge kleine Variationen hinzu für unterschiedliche Sensoren des gleichen Typs
-            temp_variation = random.uniform(-1.0, 1.0)
-            humidity_variation = random.uniform(-3.0, 3.0)
-
             sensor = SensorSimulator(
-                sensor_id=f"S{i+1}",
-                sensor_type=sensor_type_config["type"],
-                base_temp=sensor_type_config["base_temp"] + temp_variation,
-                base_humidity=sensor_type_config["base_humidity"] + humidity_variation
+                sensor_id=f"Sensor-{i+1}",
+                base_temp= random.uniform(0, 30.0),
+                base_humidity= random.uniform(30.0, 70.0)
             )
             self.sensors.append(sensor)
-            logger.info(f"Sensor initialisiert: S{i+1} ({sensor_type_config['type']})")
+            logger.info(f"Sensor initialisiert: S{i+1}")
 
     def send_reading(self, reading: Dict) -> bool:
         """Sendet einen Messwert an die FastAPI"""
