@@ -436,12 +436,12 @@ async def get_sensor_data(
                     """
                     SELECT
                         sensor_id,
-                        to_timestamp(timestamp) AS timestamp,
+                        to_timestamp(timestamp / 1000.0) AS timestamp,
                         temperature,
                         humidity
                     FROM analytics_data
                     WHERE sensor_id = %s
-                      AND to_timestamp(timestamp) BETWEEN %s AND %s
+                      AND to_timestamp(timestamp / 1000.0) BETWEEN %s AND %s
                     ORDER BY timestamp DESC
                     LIMIT %s
                     """,
