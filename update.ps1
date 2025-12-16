@@ -300,6 +300,7 @@ try {
     function Start-HelmReinstall {
         Write-Log "INFO" "Starte Neuinstallation des Releases..."
         helm uninstall $releaseName --namespace default
+        Start-Sleep -Seconds 5
         helm install $releaseName . --namespace default --wait --timeout=300s
         if ($LASTEXITCODE -eq 0) {
             Write-Log "SUCCESS" "Neuinstallation erfolgreich."
@@ -313,7 +314,7 @@ try {
     if (-not $releaseExists) {
         Write-Log "INFO" "Es existiert kein Release für '$releaseName'."
         $HelmStatus = helm status $releaseName --namespace default | Select-String -Pattern "^STATUS:\s*(\w+)" | ForEach-Object {if ($_ -match "^STATUS:\s*(\w+)") { $matches[1] }}
-        if ($HelmStatus -eq "pending-install" -or $HelmStatus -eq "pending-upgrade") {
+        if ($HelmStatus -in @("pending-install", "pending-upgrade", "pending")) {
             Write-Log "WARN" "Release konnte nicht vollständig installiert werden. Vermutlich laufen einige Pods nicht korrekt."
             $badPods = Get-UnrunningPods
             if ($badPods.Count -gt 0) {
@@ -336,11 +337,11 @@ try {
                         Write-Log "WARN" "Rollback fehlgeschlagen"
                     }
                 } else {
-                    Write-Log "WARN" "Keine erfolgreiche Revision gefunden, versuche Neuinstallation ..."
+                    Write-Log "WARN" "Keine erfolgreiche Revision gefunden, versuche Helm Neuinstallation ..."
                     Start-HelmReinstall
                 }
             } else {
-                Write-Log "WARN" "Keine Release-Historie gefunden, versuche Neuinstallation ..."
+                Write-Log "WARN" "Keine Release-Historie gefunden, versuche Helm Neuinstallation ..."
                 Start-HelmReinstall
             }
 
