@@ -152,10 +152,10 @@ if __name__ == "__main__":
                 struct(
                     lit("struct").alias("type"),
                     array(
-                        struct(lit("sensor_id").alias("field"), lit("string").alias("type"), lit(False).alias("optional"), lit(None).cast("string").alias("name")),
-                        struct(lit("timestamp").alias("field"), lit("int64").alias("type"), lit(False).alias("optional"), lit("org.apache.kafka.connect.data.Timestamp").alias("name")),
-                        struct(lit("temperature").alias("field"), lit("double").alias("type"), lit(False).alias("optional"), lit(None).cast("string").alias("name")),
-                        struct(lit("humidity").alias("field"), lit("double").alias("type"), lit(False).alias("optional"), lit(None).cast("string").alias("name"))
+                        struct(lit("sensor_id").alias("field"), lit("string").alias("type"), lit(False).alias("optional")),
+                        struct(lit("timestamp").alias("field"), lit("int64").alias("type"), lit(False).alias("optional")),
+                        struct(lit("temperature").alias("field"), lit("double").alias("type"), lit(False).alias("optional")),
+                        struct(lit("humidity").alias("field"), lit("double").alias("type"), lit(False).alias("optional"))
                     ).alias("fields"),
                     lit(False).alias("optional"),
                     lit("analytics_data").alias("name")
