@@ -377,8 +377,8 @@ async def list_all_sensors(limit: int = 50):
                     """
                     SELECT
                         sensor_id,
-                        to_timestamp(MIN(timestamp)) AS first_reading,
-                        to_timestamp(MAX(timestamp)) AS latest_reading,
+                        to_timestamp(MIN(timestamp) / 1000.0) AS first_reading,
+                        to_timestamp(MAX(timestamp) / 1000.0) AS latest_reading,
                         COUNT(*) AS reading_count
                     FROM analytics_data
                     GROUP BY sensor_id
