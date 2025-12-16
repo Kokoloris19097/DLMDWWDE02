@@ -4,7 +4,7 @@ $chartPath = "helm-charts\$releaseName"
 $global:update_starttime = Get-Date
 $scriptRoot = $PSScriptRoot
 $clusterContainerName = "$releaseName-control-plane"
-$pathShowBadPodLogsScript = "./tools/show-bad-pod-logs.ps1"
+$pathShowBadPodLogsScript = Join-Path $scriptRoot "tools/show-bad-pod-logs.ps1"
 $env:KIND_EXPERIMENTAL_PROVIDER = "podman"
 
 function Write-Log {
@@ -409,7 +409,12 @@ try {
     }
 
     Write-Log "INFO" "[5/5] Führe Tests aus..."
-    start-sleep -Seconds 30 # Warten bis Pods bereit sind
+    $i=30
+    do {
+        start-sleep -Seconds 1
+        Write-Host "." -NoNewline
+    }while ($i-- -gt 0)
+     # Warten bis Pods bereit sind
     Write-Log "DEBUG" "  Running pytest..."
     Set-Location "$scriptRoot/tests"
     pytest test_1_health.py -v --tb=short
