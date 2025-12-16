@@ -347,12 +347,12 @@ Bitte manuell installieren:
 
     #region 6. Port-Forwarding Skript starten
     Write-Log "INFO" "Starte Port-Forwarding Skript..."
-    $portForwardScript = Join-Path $initScriptRoot "port-forward.ps1"
+    $portForwardScript = Join-Path $initScriptRoot "tools\port-forward.ps1"
     if (Test-Path $portForwardScript) {
         Start-Process -FilePath "pwsh.exe" -ArgumentList "-NoExit", "-Command", "& '$portForwardScript'" -WindowStyle Minimized
         Write-Log "SUCCESS" "Port-Forwarding in neuem Prozess gestartet"
     } else {
-        Write-Log "WARN" "port-forward.ps1 nicht gefunden."
+        Write-Log "WARN" "$portForwardScript nicht gefunden."
     }
     #endregion 6. Port-Forwarding Skript starten
 
