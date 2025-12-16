@@ -145,7 +145,7 @@ Bitte manuell installieren:
 
     #region 1. Cluster erstellen/prüfen
     Write-Log "INFO" "[1/5] Prüfe Cluster..."
-    $clusterExists = kind get clusters 2>$null | Select-String -Pattern "^$clusterName$"
+    $clusterExists = kind get clusters | Select-String -Pattern "^$clusterName$"
 
     if (-not $clusterExists) {
         Write-Log "DEBUG" "Erstelle neuen Cluster '$clusterName'..."

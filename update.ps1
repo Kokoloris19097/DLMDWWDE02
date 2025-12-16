@@ -328,10 +328,10 @@ try {
                 if ($lastRevision) {
                     Write-Log "INFO" "Versuche Rollback auf Revision $($lastRevision.revision) ..."
                     helm rollback $releaseName $($lastRevision.revision) --namespace default --wait --timeout=300s
-                    Write-Log "DEBUG" "  Warte auf Rollout (max. 5 Minuten)..."
+                    Write-Log "DEBUG" "  Warte auf Update (max. 5 Minuten)..."
                     helm upgrade $releaseName . --namespace default --wait --timeout=300s
                     if ($LASTEXITCODE -eq 0) {
-                        Write-Log "SUCCESS" "Rollback erfolgreich."
+                        Write-Log "SUCCESS" "Rollback mit  erfolgreich."
                         exit 0
                     } else {
                         Write-Log "WARN" "Rollback fehlgeschlagen"
@@ -408,11 +408,14 @@ try {
         }
     }
 
-    Write-Log "INFO" "[5/5] Führe Tests aus..."
+    Write-Log "INFO" "[5/5] Führe Tests aus...`n"
     $i=30
     do {
         start-sleep -Seconds 1
         Write-Host "." -NoNewline
+        if ($i % 5 -eq 0) {
+            Write-Host " " -NoNewline
+        }
     }while ($i-- -gt 0)
     Write-Host "`n"
 
