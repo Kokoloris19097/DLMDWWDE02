@@ -414,6 +414,8 @@ try {
         start-sleep -Seconds 1
         Write-Host "." -NoNewline
     }while ($i-- -gt 0)
+    Write-Host "`n"
+
      # Warten bis Pods bereit sind
     Write-Log "DEBUG" "  Running pytest..."
     Set-Location "$scriptRoot/tests"
