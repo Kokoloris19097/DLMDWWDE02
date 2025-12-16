@@ -8,7 +8,7 @@ from confluent_kafka import Producer, KafkaException
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Optional, List
 import uvicorn
 import psycopg2
@@ -422,7 +422,7 @@ async def get_sensor_data(
     """
     # Default: letzte 7 Tage
     if not end:
-        end = datetime.utcnow()
+        end = datetime.now(UTC)
     if not start:
         start = end - timedelta(days=7)
 
@@ -482,7 +482,7 @@ async def get_sensor_stats(
     Liefert: min, max, avg für Temperatur und Luftfeuchtigkeit
     """
     if not end:
-        end = datetime.utcnow()
+        end = datetime.now(UTC)
     if not start:
         start = end - timedelta(days=7)
 
