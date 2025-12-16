@@ -15,7 +15,7 @@ import json
 import time
 import subprocess
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 
 # =============================================================================
@@ -771,7 +771,132 @@ class TestGrafanaDatasourceAndDashboards:
 
 
 # =============================================================================
-# LAYER 3F: KAFKA CONNECT SINK TESTS
+# LAYER 3F: POSTGRESQL PERMISSIONS TESTS
+# =============================================================================
+
+class TestPostgreSQLPermissions:
+    """Test PostgreSQL user permissions for analytics_data table"""
+
+    @pytest.mark.functional
+    @pytest.mark.dependency(name="postgresql_permissions_valid", scope="session")
+    def test_appuser_can_read_analytics_data(self, postgres_exec, config):
+        """
+        Verify that appuser (used by FastAPI) can read from analytics_data table
+
+        This test ensures that table permissions are correctly configured
+        so FastAPI /sensors endpoints can query the database.
+
+        Dependencies: postgresql_running, analytics_data_table_exists
+        """
+        # Test 1: Verify appuser can connect
+        success, output = postgres_exec(
+            f'psql -U appuser -d {config.POSTGRESQL_DB} -c "SELECT 1" -t'
+        )
+        assert success, f"appuser cannot connect to database: {output}"
+
+        # Test 2: Verify appuser can SELECT from analytics_data
+        success, output = postgres_exec(
+            f'psql -U appuser -d {config.POSTGRESQL_DB} -t -c '
+            f'"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE}"'
+        )
+        assert success, \
+            f"appuser cannot SELECT from {config.POSTGRESQL_TABLE}: {output}\n" \
+            f"Check: GRANT SELECT ON {config.POSTGRESQL_TABLE} TO appuser"
+
+        # Test 3: Verify appuser can INSERT into analytics_data
+        test_sensor_id = f"test-perm-{uuid.uuid4().hex[:8]}"
+        insert_query = (
+            f'psql -U appuser -d {config.POSTGRESQL_DB} -c '
+            f'"INSERT INTO {config.POSTGRESQL_TABLE} (sensor_id, timestamp, temperature, humidity) '
+            f"VALUES ('{test_sensor_id}', "
+            f"{int(datetime.now().timestamp() * 1000)}, 20.0, 50.0)\""
+        )
+        success, output = postgres_exec(insert_query)
+        assert success, \
+            f"appuser cannot INSERT into {config.POSTGRESQL_TABLE}: {output}\n" \
+            f"Check: GRANT INSERT ON {config.POSTGRESQL_TABLE} TO appuser"
+
+        # Test 4: Verify appuser can DELETE from analytics_data (cleanup)
+        success, output = postgres_exec(
+            f'psql -U appuser -d {config.POSTGRESQL_DB} -c '
+            f'"DELETE FROM {config.POSTGRESQL_TABLE} WHERE sensor_id = \'{test_sensor_id}\'"'
+        )
+        assert success, \
+            f"appuser cannot DELETE from {config.POSTGRESQL_TABLE}: {output}\n" \
+            f"Check: GRANT DELETE ON {config.POSTGRESQL_TABLE} TO appuser"
+
+    @pytest.mark.functional
+    def test_postgres_superuser_has_full_access(self, postgres_exec, config):
+        """
+        Verify postgres superuser has full access to analytics_data table
+
+        This is a sanity check to ensure the table exists and is accessible
+        by the admin user used in tests.
+
+        Dependencies: postgresql_running
+        """
+        # Test SELECT
+        success, output = postgres_exec(
+            f'psql -U postgres -d {config.POSTGRESQL_DB} -t -c '
+            f'"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE}"'
+        )
+        assert success, f"postgres user cannot SELECT: {output}"
+
+        # Test INSERT
+        test_sensor_id = f"test-admin-{uuid.uuid4().hex[:8]}"
+        success, output = postgres_exec(
+            f'psql -U postgres -d {config.POSTGRESQL_DB} -c '
+            f'"INSERT INTO {config.POSTGRESQL_TABLE} (sensor_id, timestamp, temperature, humidity) '
+            f"VALUES ('{test_sensor_id}', "
+            f"{int(datetime.now().timestamp() * 1000)}, 21.0, 51.0)\""
+        )
+        assert success, f"postgres user cannot INSERT: {output}"
+
+        # Test DELETE (cleanup)
+        success, output = postgres_exec(
+            f'psql -U postgres -d {config.POSTGRESQL_DB} -c '
+            f'"DELETE FROM {config.POSTGRESQL_TABLE} WHERE sensor_id = \'{test_sensor_id}\'"'
+        )
+        assert success, f"postgres user cannot DELETE: {output}"
+
+    @pytest.mark.functional
+    def test_table_permissions_grant(self, postgres_exec, config):
+        """
+        Verify that analytics_data table has correct permission grants
+
+        Checks PostgreSQL system catalogs to ensure appuser has required privileges.
+
+        Dependencies: postgresql_running, analytics_data_table_exists
+        """
+        # Query pg_class and pg_roles to check privileges
+        check_query = (
+            f'psql -U postgres -d {config.POSTGRESQL_DB} -t -c '
+            f'"SELECT has_table_privilege(\'appuser\', \'{config.POSTGRESQL_TABLE}\', \'SELECT\') AS can_select, '
+            f"has_table_privilege('appuser', '{config.POSTGRESQL_TABLE}', 'INSERT') AS can_insert, "
+            f"has_table_privilege('appuser', '{config.POSTGRESQL_TABLE}', 'UPDATE') AS can_update, "
+            f"has_table_privilege('appuser', '{config.POSTGRESQL_TABLE}', 'DELETE') AS can_delete\""
+        )
+
+        success, output = postgres_exec(check_query)
+        assert success, f"Failed to check table privileges: {output}"
+
+        # Parse output (expected format: " t | t | t | t")
+        privileges = output.strip().split('|')
+        assert len(privileges) == 4, f"Unexpected privilege output: {output}"
+
+        can_select = privileges[0].strip() == 't'
+        can_insert = privileges[1].strip() == 't'
+        can_update = privileges[2].strip() == 't'
+        can_delete = privileges[3].strip() == 't'
+
+        assert can_select, f"appuser missing SELECT privilege on {config.POSTGRESQL_TABLE}"
+        assert can_insert, f"appuser missing INSERT privilege on {config.POSTGRESQL_TABLE}"
+        assert can_update, f"appuser missing UPDATE privilege on {config.POSTGRESQL_TABLE}"
+        assert can_delete, f"appuser missing DELETE privilege on {config.POSTGRESQL_TABLE}"
+
+
+# =============================================================================
+# LAYER 3G: KAFKA CONNECT SINK TESTS
 # =============================================================================
 
 class TestKafkaConnectSink:
@@ -832,7 +957,7 @@ class TestKafkaConnectSink:
             print(f"  Schema present: {'schema' in msg_obj}")
         except:
             print(f"  Raw message: {message[:200]}...")
-        
+
         cmd = [
             "kubectl", "exec", "-i", "kafka-broker-0",
             "-n", config.MESSAGING_NAMESPACE,
@@ -848,12 +973,12 @@ class TestKafkaConnectSink:
             text=True,
             timeout=config.COMMAND_TIMEOUT
         )
-        
+
         if result.returncode != 0:
             print(f"[ERROR] Failed to send message: {result.stderr}")
         else:
             print(f"[SUCCESS] Message sent successfully")
-            
+
         assert result.returncode == 0, f"Failed to send message: {result.stderr}"
 
     def _wait_for_message(self, postgres_exec, test_id: str, config, max_wait: int = 30):
@@ -870,7 +995,7 @@ class TestKafkaConnectSink:
 
             if success and output.strip().isdigit() and int(output.strip()) > 0:
                 return
-            
+
             # Debug output every 5 seconds
             if (i + 1) % 5 == 0:
                 print(f"  [{i+1}s] Still waiting for message (sensor_id={test_id})...")
@@ -878,7 +1003,7 @@ class TestKafkaConnectSink:
         # Final debug: Check if any data exists in table
         all_query = f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c \"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE}\""
         success, total_count = postgres_exec(all_query)
-        
+
         # Check recent entries
         recent_query = (
             f"psql -U postgres -d {config.POSTGRESQL_DB} -t -c "
@@ -886,7 +1011,7 @@ class TestKafkaConnectSink:
             f"ORDER BY created_at DESC LIMIT 5\""
         )
         success, recent = postgres_exec(recent_query)
-        
+
         pytest.fail(
             f"Message not found in PostgreSQL after {max_wait} seconds.\n"
             f"Expected sensor_id: {test_id}\n"
@@ -909,42 +1034,254 @@ class TestKafkaConnectSink:
 
 
 # =============================================================================
-# LAYER 3G: COMPLETE END-TO-END WORKFLOW
+# LAYER 3H: COMPLETE END-TO-END WORKFLOW
 # =============================================================================
 
 class TestCompleteEndToEndWorkflow:
-    """Test complete data pipeline from Kafka to FastAPI queries with isolated test data"""
+    """
+    Test complete data pipeline: FastAPI Input → Kafka → Spark → PostgreSQL → FastAPI Output
+
+    This is a TRUE End-to-End test covering the full architecture:
+    1. POST /ingest (FastAPI) → Kafka sensor-data topic
+    2. Spark reads sensor-data → Aggregates (30s window) → Writes to analytics-data topic
+    3. PostgreSQL Connector reads analytics-data → Stores in database
+    4. GET /sensors/* (FastAPI) → Queries PostgreSQL → Returns data
+    """
 
     @pytest.mark.functional
     @pytest.mark.slow
-    def test_complete_workflow(self, fastapi_exec, isolated_sensor):
+    def test_complete_workflow_via_fastapi_ingestion(self, fastapi_exec, postgres_exec, kafka_exec, config):
         """
-        Complete workflow test with isolated test data:
-        1. Verify sensor exists in /sensors list
-        2. Get time-series data via /sensors/{id}/data
-        3. Get aggregated stats via /sensors/{id}/stats
-        4. Verify data consistency between all endpoints
+        TRUE End-to-End test: FastAPI /ingest → Spark → PostgreSQL → FastAPI /sensors/*
 
-        Uses isolated_sensor fixture for complete test isolation.
+        Pipeline stages:
+        1. POST sensor data to FastAPI /ingest endpoint
+        2. FastAPI sends to Kafka sensor-data topic
+        3. Spark aggregates data (30s tumbling windows)
+        4. Spark writes to analytics-data topic
+        5. PostgreSQL Connector writes to database
+        6. Query data via FastAPI /sensors endpoints
+        7. Verify data consistency across all endpoints
+
+        CRITICAL: This test validates the COMPLETE architecture as documented in README.md
         """
-        # ARRANGE
-        sensor_id = isolated_sensor
+        print("\n" + "="*80)
+        print("E2E TEST: Complete Pipeline Validation")
+        print("="*80)
 
-        # ACT & ASSERT: Step 1 - List sensors
+        # ARRANGE: Create unique test sensor
+        sensor_id = f"test-e2e-{uuid.uuid4().hex[:8]}"
+        print(f"\n[ARRANGE] Test Sensor ID: {sensor_id}")
+
+        # Prepare sensor reading payload for FastAPI /ingest
+        # IMPORTANT: Use UTC time to match FastAPI's default timezone
+        utc_now = datetime.now(UTC)
+        timestamp_utc = (utc_now - timedelta(seconds=2)).isoformat().replace('+00:00', 'Z')
+        sensor_payload = {
+            "sensor_id": sensor_id,
+            "timestamp": timestamp_utc,
+            "temperature": 23.5,
+            "humidity": 58.0
+        }
+        print(f"[ARRANGE] Timestamp (UTC): {sensor_payload['timestamp']}")
+        json_payload = json.dumps(sensor_payload)
+        print(f"[ARRANGE] Payload: temp={sensor_payload['temperature']}°C, humidity={sensor_payload['humidity']}%")
+
+        # ACT: Step 1 - POST to FastAPI /ingest (Start of E2E pipeline)
+        print(f"\n{'─'*80}")
+        print("[STEP 1/7] FastAPI Ingestion: POST /ingest")
+        print(f"{'─'*80}")
+
+        success, output = fastapi_exec(
+            f'curl -s -X POST http://localhost:8000/ingest '
+            f'-H "Content-Type: application/json" '
+            f'-d \'{json_payload}\''
+        )
+
+        if not success:
+            pytest.fail(
+                f"❌ FAILED at STEP 1: FastAPI Ingestion\n"
+                f"Service: FastAPI (/ingest endpoint)\n"
+                f"Error: Failed to execute curl command\n"
+                f"Output: {output}"
+            )
+
+        # Verify ingestion response
+        try:
+            ingest_response = json.loads(output)
+        except json.JSONDecodeError as e:
+            pytest.fail(
+                f"❌ FAILED at STEP 1: FastAPI Ingestion\n"
+                f"Service: FastAPI (/ingest endpoint)\n"
+                f"Error: Invalid JSON response\n"
+                f"Exception: {e}\n"
+                f"Raw Output: {output[:500]}"
+            )
+
+        if ingest_response.get("status") != "success":
+            pytest.fail(
+                f"❌ FAILED at STEP 1: FastAPI Ingestion\n"
+                f"Service: FastAPI (/ingest endpoint)\n"
+                f"Error: Ingestion returned non-success status\n"
+                f"Message: {ingest_response.get('message', 'No message')}\n"
+                f"Full Response: {json.dumps(ingest_response, indent=2)}"
+            )
+
+        if ingest_response.get("sensor_id") != sensor_id:
+            pytest.fail(
+                f"❌ FAILED at STEP 1: FastAPI Ingestion\n"
+                f"Service: FastAPI (/ingest endpoint)\n"
+                f"Error: Sensor ID mismatch\n"
+                f"Expected: {sensor_id}\n"
+                f"Got: {ingest_response.get('sensor_id')}"
+            )
+
+        kafka_partition = ingest_response.get('kafka_partition', -1)
+        kafka_offset = ingest_response.get('kafka_offset', -1)
+        print(f"✓ FastAPI accepted data (partition={kafka_partition}, offset={kafka_offset})")
+
+        # Verify message in Kafka sensor-data topic
+        print(f"\n{'─'*80}")
+        print("[STEP 2/7] Kafka Verification: Check sensor-data topic")
+        print(f"{'─'*80}")
+
+        # Count messages in sensor-data topic (last 10)
+        kafka_check_cmd = (
+            f"/opt/kafka/bin/kafka-console-consumer.sh "
+            f"--bootstrap-server localhost:9092 "
+            f"--topic {config.SENSOR_DATA_TOPIC} "
+            f"--from-beginning --max-messages 10 --timeout-ms 5000"
+        )
+        success, kafka_output = kafka_exec(kafka_check_cmd)
+
+        if success and sensor_id in kafka_output:
+            print(f"✓ Message found in Kafka topic '{config.SENSOR_DATA_TOPIC}'")
+        else:
+            print(f"⚠ Warning: Could not verify message in Kafka (may have been consumed already)")
+            print(f"  This is expected if Spark has already processed the message")
+
+        # ACT: Step 2-5 - Wait for complete pipeline processing
+        # Data must flow: Kafka sensor-data → Spark (30s window) → analytics-data → PostgreSQL
+        # Conservative wait: 45s (30s window + 15s processing buffer)
+        print(f"\n{'─'*80}")
+        print("[STEP 3/7] Pipeline Processing: Kafka → Spark → PostgreSQL")
+        print(f"{'─'*80}")
+        print(f"[E2E TEST] Waiting for full pipeline: Kafka → Spark (30s window) → PostgreSQL...")
+        time.sleep(45)
+
+        print(f"\n[STEP 4/7] PostgreSQL Verification")
+        print(f"{'─'*80}")
+
+        # Verify data arrived in PostgreSQL (as postgres superuser)
+        max_wait = 15
+        for attempt in range(max_wait):
+            success, output = postgres_exec(
+                f'psql -U postgres -d {config.POSTGRESQL_DB} -t -c '
+                f'"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE} WHERE sensor_id = \'{sensor_id}\'"'
+            )
+            if success and output.strip().isdigit() and int(output.strip()) > 0:
+                print(f"✓ Data found in PostgreSQL (postgres user) after {attempt + 1}s")
+                break
+            time.sleep(1)
+        else:
+            # Enhanced debugging: Check what's in the database
+            print(f"\n❌ DEBUGGING: Data not found after {max_wait + 45}s")
+
+            # Check 1: Total row count
+            success, total_output = postgres_exec(
+                f'psql -U postgres -d {config.POSTGRESQL_DB} -t -c '
+                f'"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE}"'
+            )
+            total_count = total_output.strip() if success else "unknown"
+            print(f"  Total rows in analytics_data: {total_count}")
+
+            # Check 2: Recent entries
+            success, recent_output = postgres_exec(
+                f'psql -U postgres -d {config.POSTGRESQL_DB} -t -c '
+                f'"SELECT sensor_id, to_timestamp(timestamp/1000.0), temperature FROM {config.POSTGRESQL_TABLE} '
+                f'ORDER BY created_at DESC LIMIT 5"'
+            )
+            print(f"  Recent entries:\n{recent_output if success else 'unable to query'}")
+
+            # Check 3: Kafka analytics-data topic
+            print(f"\n  Checking Kafka analytics-data topic...")
+            kafka_analytics_cmd = (
+                f"/opt/kafka/bin/kafka-console-consumer.sh "
+                f"--bootstrap-server localhost:9092 "
+                f"--topic {config.ANALYTICS_DATA_TOPIC} "
+                f"--from-beginning --max-messages 5 --timeout-ms 3000"
+            )
+            success, analytics_output = kafka_exec(kafka_analytics_cmd)
+            if success and analytics_output:
+                print(f"  Recent messages in analytics-data topic:\n  {analytics_output[:500]}")
+            else:
+                print(f"  ⚠ No messages found in analytics-data topic")
+
+            pytest.fail(
+                f"❌ FAILED at STEP 4: PostgreSQL Verification\n"
+                f"Service: Spark → Kafka Connector → PostgreSQL\n"
+                f"Error: Data not found in PostgreSQL after {max_wait + 45}s\n"
+                f"Expected sensor_id: {sensor_id}\n"
+                f"Total rows in table: {total_count}\n"
+                f"\nPossible causes:\n"
+                f"1. Spark not running or not processing data\n"
+                f"2. Spark window (30s) not yet triggered\n"
+                f"3. Kafka Connector not running or misconfigured\n"
+                f"4. PostgreSQL connection issues\n"
+                f"\nDebug steps:\n"
+                f"  kubectl logs -n data -l app=spark --tail=50\n"
+                f"  kubectl logs -n messaging -l app=kafka-connect --tail=50"
+            )
+
+        # Verify data is also readable by appuser (FastAPI's DB user)
+        success, output = postgres_exec(
+            f'psql -U appuser -d {config.POSTGRESQL_DB} -t -c '
+            f'"SELECT COUNT(*) FROM {config.POSTGRESQL_TABLE} WHERE sensor_id = \'{sensor_id}\'"'
+        )
+        if not success:
+            pytest.fail(
+                f"[E2E TEST] Data exists but appuser cannot read it!\n"
+                f"This will cause FastAPI /sensors to fail.\n"
+                f"Error: {output}"
+            )
+
+        appuser_count = int(output.strip()) if output.strip().isdigit() else 0
+        if appuser_count == 0:
+            pytest.fail(
+                f"[E2E TEST] Data exists for postgres user but not visible to appuser!\n"
+                f"Check table permissions: GRANT SELECT ON analytics_data TO appuser"
+            )
+
+        print(f"[E2E TEST] Data verified readable by appuser (count: {appuser_count})")
+
+        # ACT & ASSERT: Step 6 - Query via FastAPI /sensors endpoints (End of E2E pipeline)
+
+        # 6a. List sensors
         success, output = fastapi_exec('curl -s http://localhost:8000/sensors')
         assert success, f"Failed to list sensors: {output}"
 
         try:
             sensors = json.loads(output)
-            assert len(sensors) > 0, "Sensor list should not be empty"
+
+            # Debug: Check response structure
+            if not isinstance(sensors, list):
+                pytest.fail(
+                    f"Expected /sensors to return a list, got {type(sensors).__name__}.\n"
+                    f"Response: {output[:500]}"
+                )
+
+            assert len(sensors) > 0, f"Sensor list should not be empty. Response: {output}"
 
             # Find our test sensor
             test_sensor = next((s for s in sensors if s["sensor_id"] == sensor_id), None)
-            assert test_sensor is not None, f"Sensor {sensor_id} not found in sensor list"
+            assert test_sensor is not None, \
+                f"Sensor {sensor_id} not found in /sensors list.\n" \
+                f"Available sensors: {[s['sensor_id'] for s in sensors[:5]]}"
+
             list_reading_count = test_sensor["reading_count"]
             assert list_reading_count > 0, "Sensor should have readings"
 
-            # ACT & ASSERT: Step 2 - Get time-series data
+            # 6b. Get time-series data
             success, output = fastapi_exec(
                 f'curl -s "http://localhost:8000/sensors/{sensor_id}/data?limit=1000"'
             )
@@ -955,7 +1292,7 @@ class TestCompleteEndToEndWorkflow:
             assert len(data) > 0, "Should have at least one reading"
             data_count = len(data)
 
-            # ACT & ASSERT: Step 3 - Get aggregated stats
+            # 6c. Get aggregated stats
             success, output = fastapi_exec(
                 f'curl -s "http://localhost:8000/sensors/{sensor_id}/stats"'
             )
@@ -965,15 +1302,15 @@ class TestCompleteEndToEndWorkflow:
             assert stats["sensor_id"] == sensor_id, "Stats sensor_id mismatch"
             stats_count = stats["reading_count"]
 
-            # ASSERT: Step 4 - Verify consistency between endpoints
+            # ASSERT: Step 7 - Verify E2E data consistency
 
-            # Reading count consistency
+            # Reading count consistency across all endpoints
             assert stats_count == data_count, \
                 f"Stats count ({stats_count}) should equal data count ({data_count}) with limit=1000"
             assert stats_count == list_reading_count, \
                 f"Stats count ({stats_count}) should equal list count ({list_reading_count})"
 
-            # Verify all data points are within stats ranges
+            # Verify all data points are within stats ranges (aggregation validation)
             for reading in data:
                 temp = reading["temperature"]
                 humidity = reading["humidity"]
@@ -988,5 +1325,16 @@ class TestCompleteEndToEndWorkflow:
                 assert reading["sensor_id"] == sensor_id, \
                     f"Reading sensor_id {reading['sensor_id']} doesn't match expected {sensor_id}"
 
+            print(f"[E2E TEST] SUCCESS: Full pipeline validated for sensor {sensor_id}")
+
         except json.JSONDecodeError as e:
-            pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
+            pytest.fail(f"Invalid JSON response from FastAPI: {e}\nRaw output: {output[:500]}")
+        except KeyError as e:
+            pytest.fail(f"Missing expected field in response: {e}\nResponse structure: {output[:500]}")
+
+        finally:
+            # CLEANUP: Remove test data
+            postgres_exec(
+                f'psql -U postgres -d {config.POSTGRESQL_DB} -c '
+                f'"DELETE FROM {config.POSTGRESQL_TABLE} WHERE sensor_id = \'{sensor_id}\'"'
+            )
