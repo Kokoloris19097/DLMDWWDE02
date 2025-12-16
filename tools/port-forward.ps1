@@ -1,6 +1,8 @@
 
 # Port Forward Script - Expose Grafana and FastAPI locally
 # Macht Grafana und FastAPI über localhost verfügbar
+$grafanaJobName = "GrafanaPortForward"
+$fastapiJobName = "FastAPIPortForward"
 
 function Test-PortFree {
     param([int]$Port)
@@ -26,7 +28,21 @@ function Show-PortBlocker {
 
 try {
     Write-Host "Starte Port Forwarding fuer Grafana und FastAPI..." -ForegroundColor Green
+    # prüfe, ob Jobs laufen
+    $grafanaJob = Get-Job -Name $grafanaJobName -ErrorAction SilentlyContinue
+    $fastapiJob = Get-Job -Name $fastapiJobName -ErrorAction SilentlyContinue
+    if ($grafanaJob){
+        Stop-Job -Name $grafanaJobName
+        Remove-Job -Name $grafanaJobName
+        Write-Host "Alter Grafana Port Forward beendet." -ForegroundColor Magenta
+    }
+    if ($fastapiJob){
+        Stop-Job -Name $fastapiJobName
+        Remove-Job -Name $fastapiJobName
+        Write-Host "Alter FastAPI Port Forward beendet." -ForegroundColor Magenta
+    }
 
+    # prüfe, ob Ports frei sind
     if (-not (Test-PortFree 3000)) {
         Write-Host "FEHLER: Port 3000 ist bereits belegt! Bitte Prozess beenden." -ForegroundColor Red
         Show-PortBlocker 3000
@@ -39,37 +55,42 @@ try {
     }
 
     # Grafana Port Forward (localhost:3000 -> Grafana Pod)
-    Write-Host "`nStarte Grafana Port Forward auf http://localhost:3000 (Job: GrafanaPortForward)" -ForegroundColor Cyan
+    Write-Host "`nStarte Grafana Port Forward auf http://localhost:3000 (Job: $grafanaJobName)" -ForegroundColor Cyan
     $grafanaJob = Start-Job -ScriptBlock {
         kubectl port-forward -n monitoring svc/grafana 3000:3000
-    } -Name "GrafanaPortForward"
+    } -Name $grafanaJobName
 
     # Kurze Pause zwischen den Starts
     Start-Sleep -Seconds 1
 
     # FastAPI Port Forward (localhost:8000 -> FastAPI Pod)
-    Write-Host "Starte FastAPI Port Forward auf http://localhost:8000 (Job: FastAPIPortForward)" -ForegroundColor Cyan
+    Write-Host "Starte FastAPI Port Forward auf http://localhost:8000 (Job: $fastapiJobName)" -ForegroundColor Cyan
     $fastapiJob = Start-Job -ScriptBlock {
         kubectl port-forward -n api svc/fastapi 8000:8000
-    } -Name "FastAPIPortForward"
+    } -Name $fastapiJobName
 
-    # Warte kurz und prüfe, ob Jobs laufen
+    # Warte kurz und aktualisiere die Jobs
     Start-Sleep -Seconds 2
-    $grafanaState = Get-Job -Name "GrafanaPortForward"
-    $fastapiState = Get-Job -Name "FastAPIPortForward"
 
-    if ($grafanaState.State[-1] -ne 'Running') {
+    if ($grafanaJob.State.GetType()-eq [System.Array]) {
+        $grafanaState = $grafanaJob.State[-1]
+    }elseif($grafanaJob.State.GetType()-eq [String]){
+        $grafanaState = $grafanaJob.State
+    }
+    if ($fastapiJob.State.GetType()-eq [System.Array]) {
+        $fastapiState = $fastapiJob.State[-1]
+    }elseif($fastapiJob.State.GetType()-eq [String]){
+        $fastapiState = $fastapiJob.State
+    }
+
+    if ($grafanaState -ne 'Running') {
         Write-Host "FEHLER: Grafana Port-Forward konnte nicht gestartet werden!" -ForegroundColor Red
-        Receive-Job -Name "GrafanaPortForward" | Write-Host -ForegroundColor Red
-        Stop-Job -Name "GrafanaPortForward" -ErrorAction SilentlyContinue
-        Stop-Job -Name "FastAPIPortForward" -ErrorAction SilentlyContinue
+        Receive-Job -Name $grafanaJob.Name | Write-Host -ForegroundColor Red
         exit 1
     }
-    if ($fastapiState.State[-1] -ne 'Running') {
+    if ($fastapiState -ne 'Running') {
         Write-Host "FEHLER: FastAPI Port-Forward konnte nicht gestartet werden!" -ForegroundColor Red
-        Receive-Job -Name "FastAPIPortForward" | Write-Host -ForegroundColor Red
-        Stop-Job -Name "GrafanaPortForward" -ErrorAction SilentlyContinue
-        Stop-Job -Name "FastAPIPortForward" -ErrorAction SilentlyContinue
+        Receive-Job -Name $fastapiJob.Name | Write-Host -ForegroundColor Red
         exit 1
     }
 
@@ -81,14 +102,14 @@ try {
     Read-Host -Prompt "Druecke Enter zum Beenden dieses Skripts und des Port-Forwards"
 }
 finally {
-    if (Get-Job -Name "GrafanaPortForward" -ErrorAction SilentlyContinue) {
-        Stop-Job -Name "GrafanaPortForward"
-        Remove-Job -Name "GrafanaPortForward"
+    if (Get-Job -Name $grafanaJobName -ErrorAction SilentlyContinue) {
+        Stop-Job -Name $grafanaJobName
+        Remove-Job -Name $grafanaJobName
         Write-Host "Grafana Port Forward beendet." -ForegroundColor Green
     }
-    if (Get-Job -Name "FastAPIPortForward" -ErrorAction SilentlyContinue) {
-        Stop-Job -Name "FastAPIPortForward"
-        Remove-Job -Name "FastAPIPortForward"
+    if (Get-Job -Name $fastapiJobName -ErrorAction SilentlyContinue) {
+        Stop-Job -Name $fastapiJobName
+        Remove-Job -Name $fastapiJobName
         Write-Host "FastAPI Port Forward beendet." -ForegroundColor Green
     }
 }
