@@ -10,7 +10,7 @@ import uuid
 import shlex
 from dataclasses import dataclass
 from typing import Tuple, Callable
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 # =============================================================================
@@ -35,6 +35,7 @@ class TestConfig:
     # Deployment label selectors (for pods without fixed names)
     KAFKA_CONNECT_SELECTOR: str = "app=kafka-connect"
     FASTAPI_SELECTOR: str = "app=fastapi"
+    TIMEZONE = UTC
 
 
 @pytest.fixture(scope="session")
@@ -297,7 +298,7 @@ def test_message():
     """Generate unique test message for analytics-data topic (Spark output format)"""
     test_id = f"test-{uuid.uuid4().hex[:8]}"
     # Spark writes timestamp as Unix seconds (not milliseconds)
-    current_timestamp_sec = int(datetime.now().timestamp())
+    current_timestamp_sec = int(datetime.now(config.TIMEZONE).timestamp())
 
     # Match Spark's output format with nested schema structure
     message = json.dumps({

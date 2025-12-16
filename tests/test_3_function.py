@@ -17,7 +17,6 @@ import subprocess
 import uuid
 from datetime import datetime, timedelta, UTC
 
-
 # =============================================================================
 # TEST DATA FACTORY & FIXTURES
 # =============================================================================
@@ -329,12 +328,12 @@ class TestFastAPIIngestionEndpoint:
     """Test FastAPI /ingest endpoint (Kafka integration required)"""
 
     @pytest.mark.functional
-    def test_ingest_valid_data(self, fastapi_exec):
+    def test_ingest_valid_data(self, fastapi_exec, config):
         """Verify /ingest accepts valid sensor data and returns success"""
         # ARRANGE
         sensor_data = {
             "sensor_id": f"test-ingest-{uuid.uuid4().hex[:8]}",
-            "timestamp": (datetime.now() - timedelta(seconds=1)).isoformat(),
+            "timestamp": datetime.now(config.TIMEZONE).isoformat(),
             "temperature": 22.5,
             "humidity": 55.0
         }
@@ -368,12 +367,12 @@ class TestFastAPIIngestionEndpoint:
             pytest.fail(f"Invalid JSON response: {e}\nOutput: {output}")
 
     @pytest.mark.functional
-    def test_ingest_invalid_data_missing_field(self, fastapi_exec):
+    def test_ingest_invalid_data_missing_field(self, fastapi_exec, config):
         """Verify /ingest rejects data with missing required fields"""
         # ARRANGE - missing temperature field
         sensor_data = {
             "sensor_id": "test-sensor",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(config.TIMEZONE).isoformat(),
             "humidity": 55.0
         }
         json_payload = json.dumps(sensor_data)
@@ -390,16 +389,15 @@ class TestFastAPIIngestionEndpoint:
         lines = output.strip().split('\n')
         http_code = lines[-1] if lines else ""
 
-        # Should return 422 Unprocessable Entity for validation error
         assert "422" in http_code, f"Expected 422 validation error, got {http_code}"
 
     @pytest.mark.functional
-    def test_ingest_invalid_data_out_of_range(self, fastapi_exec):
+    def test_ingest_invalid_data_out_of_range(self, fastapi_exec, config):
         """Verify /ingest rejects data with out-of-range values"""
         # ARRANGE - humidity > 100%
         sensor_data = {
             "sensor_id": "test-sensor",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(config.TIMEZONE).isoformat(),
             "temperature": 22.5,
             "humidity": 150.0  # Invalid: > 100%
         }
