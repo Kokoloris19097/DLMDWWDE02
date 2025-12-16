@@ -294,7 +294,7 @@ def get_pod_names(config) -> Callable:
 # =============================================================================
 
 @pytest.fixture
-def test_message():
+def test_message(config) -> dict:
     """Generate unique test message for analytics-data topic (Spark output format)"""
     test_id = f"test-{uuid.uuid4().hex[:8]}"
     # Spark writes timestamp as Unix seconds (not milliseconds)
